@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>Trailer Preroll</title>
+</head>
+<body>
+<div id="TrailerPrerollConfigPage" data-role="page" class="page type-interior pluginConfigurationPage"
+     data-require="emby-input,emby-button,emby-select,emby-checkbox,emby-collapse">
+    <div data-role="content">
+        <div class="content-primary">
+            <form id="TrailerPrerollConfigForm">
+
+                <div class="verticalSection">
+                    <h2>Status</h2>
+                    <div id="HealthPanel" style="padding:0.75em 1em;border-radius:6px;background:rgba(128,128,128,0.12);line-height:1.6;">
+                        <div class="fieldDescription">Loading status&hellip;</div>
+                    </div>
+                    <div style="margin-top:0.5em;">
+                        <button is="emby-button" type="button" id="RefreshStatusBtn" class="raised">
+                            <span>Refresh status</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="verticalSection">
+                    <h2>Media Types</h2>
+                    <label class="checkboxContainer">
+                        <input is="emby-checkbox" type="checkbox" id="EnableForMovies" />
+                        <span>Play trailers before Movies</span>
+                    </label>
+                    <label class="checkboxContainer">
+                        <input is="emby-checkbox" type="checkbox" id="EnableForTvShows" />
+                        <span>Play trailers before TV Shows</span>
+                    </label>
+
+                    <div class="selectContainer">
+                        <label class="selectLabel" for="EpisodeMode">TV episode behaviour</label>
+                        <select is="emby-select" id="EpisodeMode">
+                            <option value="FirstEpisodeOfSession">Only before the 1st episode watched in a session</option>
+                            <option value="EveryEpisode">Before every episode</option>
+                        </select>
+                        <div class="fieldDescription">
+                            "First episode only" avoids interrupting binge autoplay between episodes.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="verticalSection">
+                    <h2>Library Trailers</h2>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="LibraryTrailerCount">Number of library trailers (0&ndash;10)</label>
+                        <input is="emby-input" type="number" id="LibraryTrailerCount" min="0" max="10" step="1" />
+                    </div>
+                    <div class="selectContainer">
+                        <label class="selectLabel" for="LibraryFilter">Filter</label>
+                        <select is="emby-select" id="LibraryFilter">
+                            <option value="WatchedAndUnwatched">Watched &amp; Unwatched</option>
+                            <option value="UnwatchedOnly">Unwatched Only</option>
+                        </select>
+                    </div>
+                    <label class="checkboxContainer">
+                        <input is="emby-checkbox" type="checkbox" id="LibrarySourceTmdb" />
+                        <span>Source: TMDB</span>
+                    </label>
+                    <label class="checkboxContainer">
+                        <input is="emby-checkbox" type="checkbox" id="LibrarySourceYoutube" />
+                        <span>Source: YouTube</span>
+                    </label>
+                    <div class="fieldDescription">
+                        Library trailers are read from each movie's existing trailer metadata (YouTube links),
+                        so no TMDB API key is required for this section.
+                    </div>
+                </div>
+
+                <div class="verticalSection">
+                    <h2>Upcoming Movie Trailers</h2>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="UpcomingTrailerCount">Number of upcoming trailers (0&ndash;10)</label>
+                        <input is="emby-input" type="number" id="UpcomingTrailerCount" min="0" max="10" step="1" />
+                    </div>
+                    <div class="selectContainer">
+                        <label class="selectLabel" for="UpcomingWindow">Look ahead</label>
+                        <select is="emby-select" id="UpcomingWindow">
+                            <option value="TwoWeeks">2 weeks</option>
+                            <option value="OneMonth">1 month</option>
+                            <option value="TwoMonths">2 months</option>
+                            <option value="ThreeMonths">3 months</option>
+                            <option value="NoLimit">No limit</option>
+                        </select>
+                    </div>
+                    <label class="checkboxContainer">
+                        <input is="emby-checkbox" type="checkbox" id="UpcomingSourceTmdb" />
+                        <span>Source: TMDB</span>
+                    </label>
+                    <label class="checkboxContainer">
+                        <input is="emby-checkbox" type="checkbox" id="UpcomingSourceYoutube" />
+                        <span>Source: YouTube</span>
+                    </label>
+                    <div class="fieldDescription">
+                        Upcoming releases are discovered live from TMDB and are movies not already in your library.
+                        A TMDB API key is required for this section.
+                    </div>
+                </div>
+
+                <div class="verticalSection">
+                    <h2>TMDB</h2>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="TmdbApiKey">TMDB API key (optional)</label>
+                        <input is="emby-input" type="text" id="TmdbApiKey" autocomplete="off" />
+                        <div class="fieldDescription">
+                            If blank, TMDB-sourced trailers are skipped and only YouTube library trailers are used.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="verticalSection">
+                    <h2>Intro Bumper</h2>
+                    <label class="checkboxContainer">
+                        <input is="emby-checkbox" type="checkbox" id="EnableIntroVideo" />
+                        <span>Play a short intro clip before the upcoming-movies block</span>
+                    </label>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="IntroVideoUrl">Intro video YouTube URL</label>
+                        <input is="emby-input" type="text" id="IntroVideoUrl" autocomplete="off"
+                               placeholder="https://www.youtube.com/watch?v=..." />
+                    </div>
+                </div>
+
+                <div class="verticalSection">
+                    <h2>Playback</h2>
+                    <label class="checkboxContainer">
+                        <input is="emby-checkbox" type="checkbox" id="AllowSkip" />
+                        <span>Allow skipping trailers during playback</span>
+                    </label>
+                    <label class="checkboxContainer">
+                        <input is="emby-checkbox" type="checkbox" id="Randomize" />
+                        <span>Randomize trailer selection on each play</span>
+                    </label>
+                </div>
+
+                <div class="verticalSection">
+                    <h2>Cache</h2>
+                    <div class="selectContainer">
+                        <label class="selectLabel" for="RotationInterval">Change cached trailers</label>
+                        <select is="emby-select" id="RotationInterval">
+                            <option value="SixHours">Every 6 hours</option>
+                            <option value="Daily">Once a day</option>
+                            <option value="Weekly">Once a week</option>
+                            <option value="Monthly">Once a month</option>
+                            <option value="Never">Never (keep the same set)</option>
+                        </select>
+                        <div class="fieldDescription">
+                            How often the plugin swaps out the cached trailers for a fresh random set.
+                            The trailers live in two auto-created libraries ("Trailer Preroll (Library)"
+                            and "Trailer Preroll (Upcoming)"). To hide them, use Dashboard &rarr; Users &rarr;
+                            your user &rarr; untick those libraries (do NOT disable the library, which removes the items).
+                        </div>
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="RotateAfterPlays">Replace a trailer after N plays</label>
+                        <input is="emby-input" type="number" id="RotateAfterPlays" min="0" step="1" />
+                        <div class="fieldDescription">
+                            Rolling rotation: once a trailer has played this many times, it's retired and
+                            one fresh trailer is downloaded to replace it (a gentle trickle, easier on
+                            YouTube than big rotations). 0 = off. Default 5.
+                        </div>
+                    </div>
+                    <div style="margin-top:1em;">
+                        <button is="emby-button" type="button" id="DownloadNowBtn" class="raised block">
+                            <span>Download trailers now</span>
+                        </button>
+                        <div class="fieldDescription">
+                            Manually fetch/refresh the trailer set now (runs in the background; may take a few minutes).
+                        </div>
+                    </div>
+                    <div style="margin-top:1em;">
+                        <button is="emby-button" type="button" id="ConvertTypesBtn" class="raised block">
+                            <span>Mark cached trailers as "Trailer" type</span>
+                        </button>
+                        <div class="fieldDescription">
+                            Re-lists the already-downloaded trailers as proper "Trailer" items instead of
+                            generic home videos. This re-scans the two trailer libraries (it does NOT
+                            re-download anything &mdash; the files stay put) and runs in the background.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="verticalSection">
+                    <h2>Advanced</h2>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="SessionGapMinutes">Session gap (minutes)</label>
+                        <input is="emby-input" type="number" id="SessionGapMinutes" min="1" step="1" />
+                        <div class="fieldDescription">
+                            A gap longer than this between episodes starts a new "session" for the
+                            first-episode-only TV mode. Default 180.
+                        </div>
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="LibraryPoolSize">Library trailer pool size</label>
+                        <input is="emby-input" type="number" id="LibraryPoolSize" min="1" step="1" />
+                        <div class="fieldDescription">
+                            How many library-film trailers to keep cached for variety. Larger = more
+                            variety and more disk. Default 60. (Ignored if "Keep a trailer for every film" is on.)
+                        </div>
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="UpcomingPoolSize">Upcoming trailer pool size</label>
+                        <input is="emby-input" type="number" id="UpcomingPoolSize" min="1" step="1" />
+                        <div class="fieldDescription">
+                            How many upcoming trailers to keep cached. Default 12.
+                        </div>
+                    </div>
+                    <label class="checkboxContainer">
+                        <input is="emby-checkbox" type="checkbox" id="KeepAllLibraryTrailers" />
+                        <span>Keep a trailer for every library film</span>
+                    </label>
+                    <div class="fieldDescription" style="margin-bottom:1em;">
+                        Instead of a bounded rotating pool, gradually download and permanently keep a
+                        trailer for every film in your library. Great variety, but can use a lot of disk
+                        on big libraries.
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="DownloadsPerCycle">Downloads per cycle</label>
+                        <input is="emby-input" type="number" id="DownloadsPerCycle" min="0" step="1" />
+                        <div class="fieldDescription">
+                            Max trailers to download each background cycle, so the pool fills gradually
+                            instead of all at once (gentler on YouTube). 0 = no limit. Default 10.
+                        </div>
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="CacheCapMb">Cache size cap (MB)</label>
+                        <input is="emby-input" type="number" id="CacheCapMb" min="100" step="100" />
+                        <div class="fieldDescription">
+                            Trailers are streamed from a small local cache (yt-dlp + ffmpeg). Oldest are
+                            deleted once the cache exceeds this size. Default 2048 (2 GB).
+                        </div>
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="MaxTrailerHeight">Max trailer height (px)</label>
+                        <input is="emby-input" type="number" id="MaxTrailerHeight" min="240" step="1" />
+                        <div class="fieldDescription">
+                            Quality cap for cached trailers (e.g. 720 or 1080). Lower = smaller files. Default 720.
+                        </div>
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="YtDlpPath">yt-dlp path (optional)</label>
+                        <input is="emby-input" type="text" id="YtDlpPath" autocomplete="off"
+                               placeholder="leave blank to auto-detect" />
+                        <div class="fieldDescription">
+                            Leave blank to use yt-dlp(.exe) from the server data folder or system PATH.
+                        </div>
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="YtDlpPlayerClient">YouTube player client</label>
+                        <input is="emby-input" type="text" id="YtDlpPlayerClient" autocomplete="off"
+                               placeholder="android" />
+                        <div class="fieldDescription">
+                            yt-dlp extraction client(s) used to get past YouTube bot checks (e.g. "android"
+                            or "android,ios"). Blank = yt-dlp default.
+                        </div>
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="YtDlpCookiesPath">YouTube cookies file (optional)</label>
+                        <input is="emby-input" type="text" id="YtDlpCookiesPath" autocomplete="off"
+                               placeholder="e.g. F:\\path\\to\\cookies.txt" />
+                        <div class="fieldDescription">
+                            Path to a cookies.txt exported from a browser logged into YouTube. Strongly
+                            improves reliability when YouTube blocks downloads with "Sign in to confirm
+                            you're not a bot".
+                        </div>
+                    </div>
+                </div>
+
+                <div class="verticalSection">
+                    <h2>Per-User Overrides</h2>
+                    <div class="fieldDescription" style="margin-bottom:1em;">
+                        By default every user gets the global settings above. Enable an override for a
+                        specific user to give them different trailer selection settings (for example,
+                        one user gets any trailer while another only gets unwatched-movie trailers).
+                        Download, cache and pool settings are always shared &mdash; overrides only change
+                        <em>which</em> and <em>how many</em> of the already-downloaded trailers each user sees.
+                    </div>
+                    <div id="UserOverridesContainer"></div>
+                </div>
+
+                <div>
+                    <button is="emby-button" type="submit" class="raised button-submit block">
+                        <span>Save</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        (function () {
+            var pluginId = "b7e9f2a1-4c3d-4e5f-9a8b-6c7d8e9f0a1b";
+
+            function escapeHtml(s) {
+                return String(s || '').replace(/[&<>"']/g, function (c) {
+                    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+                });
+            }
+
+            function fmtTime(iso) {
+                if (!iso) { return 'never'; }
+                try {
+                    var d = new Date(iso);
+                    var mins = Math.round((Date.now() - d.getTime()) / 60000);
+                    var rel = mins < 1 ? 'just now'
+                        : mins < 60 ? mins + ' min ago'
+                        : mins < 1440 ? Math.round(mins / 60) + ' h ago'
+                        : Math.round(mins / 1440) + ' d ago';
+                    return d.toLocaleString() + ' (' + rel + ')';
+                } catch (e) { return String(iso); }
+            }
+
+            function renderHealth(page) {
+                var panel = page.querySelector('#HealthPanel');
+                panel.innerHTML = '<div class="fieldDescription">Loading status&hellip;</div>';
+                ApiClient.getJSON(ApiClient.getUrl('TrailerPreroll/Health')).then(function (h) {
+                    var rows = [];
+                    rows.push('<div><strong>Cached now:</strong> ' + h.libraryCached + ' library / ' + h.upcomingCached + ' upcoming' +
+                        ' (target ' + h.libraryPoolSize + ' / ' + h.upcomingPoolSize + ')</div>');
+                    rows.push('<div><strong>Last refresh cycle:</strong> ' + fmtTime(h.lastCycleUtc) + '</div>');
+                    if (h.lastCycleUtc) {
+                        rows.push('<div style="margin-left:1em;">' + h.cycleSucceeded + ' downloaded, ' +
+                            h.cycleFailed + ' failed' +
+                            (h.cycleAuthFailed > 0 ? ' (' + h.cycleAuthFailed + ' bot/cookie blocks)' : '') +
+                            ' of ' + h.cycleAttempts + ' attempted</div>');
+                    }
+                    rows.push('<div><strong>Last successful download:</strong> ' + fmtTime(h.lastSuccessUtc) + '</div>');
+                    rows.push('<div><strong>Totals since restart:</strong> ' + h.totalSucceeded + ' ok, ' +
+                        h.totalFailed + ' failed' + (h.totalAuthFailed > 0 ? ', ' + h.totalAuthFailed + ' bot/cookie' : '') + '</div>');
+
+                    // Cookies line.
+                    var cookieLine;
+                    if (!h.cookiesPath) {
+                        cookieLine = '<span style="color:#e0a030;">&#9888; No cookies file configured &mdash; gated trailers will fail. Set one under Advanced.</span>';
+                    } else if (!h.cookiesExists) {
+                        cookieLine = '<span style="color:#e05050;">&#9888; Cookies file not found at the configured path.</span>';
+                    } else {
+                        cookieLine = 'File OK, updated ' + fmtTime(h.cookiesModifiedUtc);
+                    }
+                    rows.push('<div><strong>Cookies:</strong> ' + cookieLine + '</div>');
+                    if (h.lastError) {
+                        rows.push('<div class="fieldDescription" style="margin-top:0.25em;">Last error: ' + escapeHtml(h.lastError) + '</div>');
+                    }
+
+                    // Overall banner: red only on a real bot-block burst; otherwise healthy.
+                    var banner;
+                    if (h.cookieWarning) {
+                        banner = '<div style="margin-bottom:0.5em;padding:0.4em 0.6em;border-radius:4px;background:rgba(224,80,80,0.2);color:#e05050;">' +
+                            '&#9888; YouTube is blocking downloads (bot check). Re-export cookies.txt from a logged-in incognito YouTube tab and save over your cookies file.</div>';
+                    } else {
+                        banner = '<div style="margin-bottom:0.5em;padding:0.4em 0.6em;border-radius:4px;background:rgba(80,180,80,0.18);color:#4caf50;">' +
+                            '&#10003; Downloads are healthy.</div>';
+                    }
+
+                    panel.innerHTML = banner + rows.join('');
+                }, function () {
+                    panel.innerHTML = '<div class="fieldDescription">Could not load status (check server logs).</div>';
+                });
+            }
+
+            // Builds the settings form for one user. `over` is that user's stored override (or null,
+            // in which case the fields default to the current global settings as a starting point).
+            function buildUserBlock(user, over, globalConfig) {
+                var src = over || {
+                    Enabled: false,
+                    EnableForMovies: globalConfig.EnableForMovies,
+                    EnableForTvShows: globalConfig.EnableForTvShows,
+                    EpisodeMode: globalConfig.EpisodeMode,
+                    LibraryTrailerCount: globalConfig.LibraryTrailerCount,
+                    LibraryFilter: globalConfig.LibraryFilter,
+                    UpcomingTrailerCount: globalConfig.UpcomingTrailerCount
+                };
+
+                var block = document.createElement('div');
+                block.className = 'verticalSection';
+                block.setAttribute('data-userid', user.Id);
+                block.style.borderTop = '1px solid rgba(128,128,128,0.3)';
+                block.style.paddingTop = '0.75em';
+                block.style.marginTop = '0.5em';
+
+                block.innerHTML =
+                    '<label class="checkboxContainer">' +
+                    '  <input is="emby-checkbox" type="checkbox" data-field="Enabled" />' +
+                    '  <span>Override settings for <strong>' + escapeHtml(user.Name) + '</strong></span>' +
+                    '</label>' +
+                    '<div data-role="overrideFields" style="margin-left:1.5em;">' +
+                    '  <label class="checkboxContainer">' +
+                    '    <input is="emby-checkbox" type="checkbox" data-field="EnableForMovies" />' +
+                    '    <span>Play trailers before Movies</span>' +
+                    '  </label>' +
+                    '  <label class="checkboxContainer">' +
+                    '    <input is="emby-checkbox" type="checkbox" data-field="EnableForTvShows" />' +
+                    '    <span>Play trailers before TV Shows</span>' +
+                    '  </label>' +
+                    '  <div class="selectContainer">' +
+                    '    <label class="selectLabel">TV episode behaviour</label>' +
+                    '    <select is="emby-select" data-field="EpisodeMode">' +
+                    '      <option value="FirstEpisodeOfSession">Only before the 1st episode watched in a session</option>' +
+                    '      <option value="EveryEpisode">Before every episode</option>' +
+                    '    </select>' +
+                    '  </div>' +
+                    '  <div class="inputContainer">' +
+                    '    <label class="inputLabel inputLabelUnfocused">Number of library trailers (0&ndash;10)</label>' +
+                    '    <input is="emby-input" type="number" data-field="LibraryTrailerCount" min="0" max="10" step="1" />' +
+                    '  </div>' +
+                    '  <div class="selectContainer">' +
+                    '    <label class="selectLabel">Library filter</label>' +
+                    '    <select is="emby-select" data-field="LibraryFilter">' +
+                    '      <option value="WatchedAndUnwatched">Watched &amp; Unwatched</option>' +
+                    '      <option value="UnwatchedOnly">Unwatched Only</option>' +
+                    '    </select>' +
+                    '  </div>' +
+                    '  <div class="inputContainer">' +
+                    '    <label class="inputLabel inputLabelUnfocused">Number of upcoming trailers (0&ndash;10)</label>' +
+                    '    <input is="emby-input" type="number" data-field="UpcomingTrailerCount" min="0" max="10" step="1" />' +
+                    '  </div>' +
+                    '</div>';
+
+                var q = function (field) { return block.querySelector('[data-field="' + field + '"]'); };
+                q('Enabled').checked = !!src.Enabled;
+                q('EnableForMovies').checked = !!src.EnableForMovies;
+                q('EnableForTvShows').checked = !!src.EnableForTvShows;
+                q('EpisodeMode').value = src.EpisodeMode;
+                q('LibraryTrailerCount').value = src.LibraryTrailerCount;
+                q('LibraryFilter').value = src.LibraryFilter;
+                q('UpcomingTrailerCount').value = src.UpcomingTrailerCount;
+
+                var fields = block.querySelector('[data-role="overrideFields"]');
+                var syncEnabled = function () {
+                    fields.style.display = q('Enabled').checked ? '' : 'none';
+                };
+                q('Enabled').addEventListener('change', syncEnabled);
+                syncEnabled();
+
+                return block;
+            }
+
+            function renderUserOverrides(page, config) {
+                var container = page.querySelector('#UserOverridesContainer');
+                container.innerHTML = '<div class="fieldDescription">Loading users&hellip;</div>';
+
+                ApiClient.getUsers().then(function (users) {
+                    container.innerHTML = '';
+                    var overrides = config.UserOverrides || [];
+                    var byId = {};
+                    overrides.forEach(function (o) { if (o && o.UserId) { byId[String(o.UserId).toLowerCase()] = o; } });
+
+                    users.forEach(function (user) {
+                        var over = byId[String(user.Id).toLowerCase()] || null;
+                        container.appendChild(buildUserBlock(user, over, config));
+                    });
+
+                    if (users.length === 0) {
+                        container.innerHTML = '<div class="fieldDescription">No users found.</div>';
+                    }
+                }, function () {
+                    container.innerHTML = '<div class="fieldDescription">Could not load the user list.</div>';
+                });
+            }
+
+            function collectUserOverrides(page) {
+                var result = [];
+                var blocks = page.querySelectorAll('#UserOverridesContainer [data-userid]');
+                blocks.forEach(function (block) {
+                    var q = function (field) { return block.querySelector('[data-field="' + field + '"]'); };
+                    if (!q('Enabled').checked) {
+                        return; // only persist active overrides
+                    }
+                    result.push({
+                        UserId: block.getAttribute('data-userid'),
+                        Enabled: true,
+                        EnableForMovies: q('EnableForMovies').checked,
+                        EnableForTvShows: q('EnableForTvShows').checked,
+                        EpisodeMode: q('EpisodeMode').value,
+                        LibraryTrailerCount: parseInt(q('LibraryTrailerCount').value, 10) || 0,
+                        LibraryFilter: q('LibraryFilter').value,
+                        UpcomingTrailerCount: parseInt(q('UpcomingTrailerCount').value, 10) || 0
+                    });
+                });
+                return result;
+            }
+
+            function loadConfig(page) {
+                Dashboard.showLoadingMsg();
+                ApiClient.getPluginConfiguration(pluginId).then(function (config) {
+                    page.querySelector('#EnableForMovies').checked = config.EnableForMovies;
+                    page.querySelector('#EnableForTvShows').checked = config.EnableForTvShows;
+                    // Enums are serialised by Jellyfin as their string names.
+                    page.querySelector('#EpisodeMode').value = config.EpisodeMode;
+
+                    page.querySelector('#LibraryTrailerCount').value = config.LibraryTrailerCount;
+                    page.querySelector('#LibraryFilter').value = config.LibraryFilter;
+                    page.querySelector('#LibrarySourceTmdb').checked = config.LibrarySourceTmdb;
+                    page.querySelector('#LibrarySourceYoutube').checked = config.LibrarySourceYoutube;
+
+                    page.querySelector('#UpcomingTrailerCount').value = config.UpcomingTrailerCount;
+                    page.querySelector('#UpcomingWindow').value = config.UpcomingWindow;
+                    page.querySelector('#UpcomingSourceTmdb').checked = config.UpcomingSourceTmdb;
+                    page.querySelector('#UpcomingSourceYoutube').checked = config.UpcomingSourceYoutube;
+
+                    page.querySelector('#TmdbApiKey').value = config.TmdbApiKey || '';
+
+                    page.querySelector('#EnableIntroVideo').checked = config.EnableIntroVideo;
+                    page.querySelector('#IntroVideoUrl').value = config.IntroVideoUrl || '';
+
+                    page.querySelector('#AllowSkip').checked = config.AllowSkip;
+                    page.querySelector('#Randomize').checked = config.Randomize;
+
+                    page.querySelector('#SessionGapMinutes').value = config.SessionGapMinutes;
+                    page.querySelector('#LibraryPoolSize').value = config.LibraryPoolSize;
+                    page.querySelector('#UpcomingPoolSize').value = config.UpcomingPoolSize;
+                    page.querySelector('#KeepAllLibraryTrailers').checked = config.KeepAllLibraryTrailers;
+                    page.querySelector('#DownloadsPerCycle').value = config.DownloadsPerCycle;
+                    page.querySelector('#CacheCapMb').value = config.CacheCapMb;
+                    page.querySelector('#MaxTrailerHeight').value = config.MaxTrailerHeight;
+                    page.querySelector('#YtDlpPath').value = config.YtDlpPath || '';
+                    page.querySelector('#RotationInterval').value = config.RotationInterval;
+                    page.querySelector('#RotateAfterPlays').value = config.RotateAfterPlays;
+                    page.querySelector('#YtDlpPlayerClient').value = config.YtDlpPlayerClient || '';
+                    page.querySelector('#YtDlpCookiesPath').value = config.YtDlpCookiesPath || '';
+
+                    renderUserOverrides(page, config);
+                    renderHealth(page);
+
+                    Dashboard.hideLoadingMsg();
+                });
+            }
+
+            function saveConfig(page) {
+                Dashboard.showLoadingMsg();
+                ApiClient.getPluginConfiguration(pluginId).then(function (config) {
+                    config.EnableForMovies = page.querySelector('#EnableForMovies').checked;
+                    config.EnableForTvShows = page.querySelector('#EnableForTvShows').checked;
+                    // Send enums as their string names (Jellyfin uses JsonStringEnumConverter).
+                    config.EpisodeMode = page.querySelector('#EpisodeMode').value;
+
+                    config.LibraryTrailerCount = parseInt(page.querySelector('#LibraryTrailerCount').value, 10) || 0;
+                    config.LibraryFilter = page.querySelector('#LibraryFilter').value;
+                    config.LibrarySourceTmdb = page.querySelector('#LibrarySourceTmdb').checked;
+                    config.LibrarySourceYoutube = page.querySelector('#LibrarySourceYoutube').checked;
+
+                    config.UpcomingTrailerCount = parseInt(page.querySelector('#UpcomingTrailerCount').value, 10) || 0;
+                    config.UpcomingWindow = page.querySelector('#UpcomingWindow').value;
+                    config.UpcomingSourceTmdb = page.querySelector('#UpcomingSourceTmdb').checked;
+                    config.UpcomingSourceYoutube = page.querySelector('#UpcomingSourceYoutube').checked;
+
+                    config.TmdbApiKey = page.querySelector('#TmdbApiKey').value.trim();
+
+                    config.EnableIntroVideo = page.querySelector('#EnableIntroVideo').checked;
+                    config.IntroVideoUrl = page.querySelector('#IntroVideoUrl').value.trim();
+
+                    config.AllowSkip = page.querySelector('#AllowSkip').checked;
+                    config.Randomize = page.querySelector('#Randomize').checked;
+
+                    config.SessionGapMinutes = parseInt(page.querySelector('#SessionGapMinutes').value, 10) || 180;
+                    config.LibraryPoolSize = parseInt(page.querySelector('#LibraryPoolSize').value, 10) || 60;
+                    config.UpcomingPoolSize = parseInt(page.querySelector('#UpcomingPoolSize').value, 10) || 12;
+                    config.KeepAllLibraryTrailers = page.querySelector('#KeepAllLibraryTrailers').checked;
+                    config.DownloadsPerCycle = parseInt(page.querySelector('#DownloadsPerCycle').value, 10) || 0;
+                    config.CacheCapMb = parseInt(page.querySelector('#CacheCapMb').value, 10) || 2048;
+                    config.MaxTrailerHeight = parseInt(page.querySelector('#MaxTrailerHeight').value, 10) || 720;
+                    config.YtDlpPath = page.querySelector('#YtDlpPath').value.trim();
+                    config.RotationInterval = page.querySelector('#RotationInterval').value;
+                    config.RotateAfterPlays = parseInt(page.querySelector('#RotateAfterPlays').value, 10) || 0;
+                    config.YtDlpPlayerClient = page.querySelector('#YtDlpPlayerClient').value.trim();
+                    config.YtDlpCookiesPath = page.querySelector('#YtDlpCookiesPath').value.trim();
+
+                    config.UserOverrides = collectUserOverrides(page);
+
+                    ApiClient.updatePluginConfiguration(pluginId, config).then(function (result) {
+                        Dashboard.processPluginConfigurationUpdateResult(result);
+                    });
+                });
+            }
+
+            document.querySelector('#TrailerPrerollConfigPage').addEventListener('pageshow', function () {
+                loadConfig(this);
+            });
+
+            document.querySelector('#TrailerPrerollConfigForm').addEventListener('submit', function (e) {
+                saveConfig(document.querySelector('#TrailerPrerollConfigPage'));
+                e.preventDefault();
+                return false;
+            });
+
+            document.querySelector('#RefreshStatusBtn').addEventListener('click', function () {
+                renderHealth(document.querySelector('#TrailerPrerollConfigPage'));
+            });
+
+            document.querySelector('#DownloadNowBtn').addEventListener('click', function () {
+                Dashboard.showLoadingMsg();
+                ApiClient.ajax({ type: 'POST', url: ApiClient.getUrl('TrailerPreroll/Refresh') }).then(function () {
+                    Dashboard.hideLoadingMsg();
+                    Dashboard.alert('Trailer download started in the background. It may take a few minutes to appear.');
+                }, function () {
+                    Dashboard.hideLoadingMsg();
+                    Dashboard.alert('Could not start the download. Check the server logs.');
+                });
+            });
+
+            document.querySelector('#ConvertTypesBtn').addEventListener('click', function () {
+                Dashboard.showLoadingMsg();
+                ApiClient.ajax({ type: 'POST', url: ApiClient.getUrl('TrailerPreroll/ConvertTypes') }).then(function () {
+                    Dashboard.hideLoadingMsg();
+                    Dashboard.alert('Re-typing started. The two trailer libraries will re-scan in the background (no re-download). Refresh the library view in a minute to see them as Trailers.');
+                }, function () {
+                    Dashboard.hideLoadingMsg();
+                    Dashboard.alert('Could not start the conversion. Check the server logs.');
+                });
+            });
+        })();
+    </script>
+</div>
+</body>
+</html>

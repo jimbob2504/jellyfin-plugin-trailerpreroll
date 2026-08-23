@@ -1,0 +1,13 @@
+# Build output
+bin/
+obj/
+*.user
+*.suo
+.vs/
+
+# Local backups / scratch (not part of the plugin)
+backups/
+
+# Release artifacts
+*.zip
+artifacts/
