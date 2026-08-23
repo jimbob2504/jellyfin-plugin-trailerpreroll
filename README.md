@@ -73,8 +73,7 @@ TMDB key and cookies path, and click **Download trailers now**.
 ## Notes & caveats
 
 - The plugin auto-creates two **Home videos** libraries: *Trailer Preroll (Library)* and
-  *Trailer Preroll (Upcoming)*. To hide them, use **Dashboard → Users → (user) → untick** those
-  libraries (do **not** disable the library, which deletes the items).
+  *Trailer Preroll (Upcoming)*.
 - Cinema-mode intros must be supported/enabled by your client.
 - The **"Want to watch" button** works in the **web client only** (it injects a small script into the
   web client's `index.html`, re-applied automatically on each server start). It does not appear on
