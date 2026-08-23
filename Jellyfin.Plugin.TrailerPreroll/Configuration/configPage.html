@@ -321,6 +321,9 @@
                 panel.innerHTML = '<div class="fieldDescription">Loading status&hellip;</div>';
                 ApiClient.getJSON(ApiClient.getUrl('TrailerPreroll/Health')).then(function (h) {
                     var rows = [];
+                    var yn = function (ok) { return ok ? '<span style="color:#4caf50;">&#10003;</span>' : '<span style="color:#e05050;">&#10007;</span>'; };
+                    rows.push('<div><strong>Tools:</strong> yt-dlp ' + yn(h.ytDlpFound) +
+                        ' &nbsp; deno ' + yn(h.denoFound) + ' &nbsp; ffmpeg ' + yn(h.ffmpegFound) + '</div>');
                     rows.push('<div><strong>Cached now:</strong> ' + h.libraryCached + ' library / ' + h.upcomingCached + ' upcoming' +
                         ' (target ' + h.libraryPoolSize + ' / ' + h.upcomingPoolSize + ')</div>');
                     rows.push('<div><strong>Last refresh cycle:</strong> ' + fmtTime(h.lastCycleUtc) + '</div>');

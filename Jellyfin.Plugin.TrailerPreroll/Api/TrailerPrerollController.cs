@@ -30,6 +30,7 @@ namespace Jellyfin.Plugin.TrailerPreroll.Api
 
         private readonly TrailerLibraryService _libraries;
         private readonly TrailerCatalogService _catalog;
+        private readonly TrailerCacheService _downloader;
         private readonly PrerollHealth _health;
         private readonly ILibraryManager _libraryManager;
         private readonly IPlaylistManager _playlistManager;
@@ -41,6 +42,7 @@ namespace Jellyfin.Plugin.TrailerPreroll.Api
         /// </summary>
         /// <param name="libraries">Library/folder service.</param>
         /// <param name="catalog">Rotation service.</param>
+        /// <param name="downloader">Trailer downloader (for tool-status checks).</param>
         /// <param name="health">Download health tracker.</param>
         /// <param name="libraryManager">Library manager.</param>
         /// <param name="playlistManager">Playlist manager.</param>
@@ -49,6 +51,7 @@ namespace Jellyfin.Plugin.TrailerPreroll.Api
         public TrailerPrerollController(
             TrailerLibraryService libraries,
             TrailerCatalogService catalog,
+            TrailerCacheService downloader,
             PrerollHealth health,
             ILibraryManager libraryManager,
             IPlaylistManager playlistManager,
@@ -57,6 +60,7 @@ namespace Jellyfin.Plugin.TrailerPreroll.Api
         {
             _libraries = libraries;
             _catalog = catalog;
+            _downloader = downloader;
             _health = health;
             _libraryManager = libraryManager;
             _playlistManager = playlistManager;
@@ -137,8 +141,13 @@ namespace Jellyfin.Plugin.TrailerPreroll.Api
             var cookieWarning = _health.CycleAuthFailed >= 5
                 || (_health.CycleAttempts >= 4 && (_health.CycleAuthFailed * 2) >= _health.CycleAttempts);
 
+            var tools = _downloader.GetToolStatus();
+
             return new
             {
+                ytDlpFound = tools.YtDlp,
+                denoFound = tools.Deno,
+                ffmpegFound = tools.Ffmpeg,
                 lastCycleUtc = _health.LastCycleUtc,
                 cycleAttempts = _health.CycleAttempts,
                 cycleSucceeded = _health.CycleSucceeded,
@@ -210,9 +219,10 @@ namespace Jellyfin.Plugin.TrailerPreroll.Api
                 }
             }
 
+            bool added;
             try
             {
-                await AddToWatchLaterAsync(userId, targetId).ConfigureAwait(false);
+                added = await AddToWatchLaterAsync(userId, targetId).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -220,8 +230,12 @@ namespace Jellyfin.Plugin.TrailerPreroll.Api
                 return StatusCode(StatusCodes.Status500InternalServerError);
             }
 
-            _logger.LogInformation("Trailer Preroll added '{Title}' to Watch Later for user {User}.", title, userId);
-            return Ok(new { added = true, title, kind = isMovie ? "movie" : "trailer" });
+            if (added)
+            {
+                _logger.LogInformation("Trailer Preroll added '{Title}' to Watch Later for user {User}.", title, userId);
+            }
+
+            return Ok(new { added, alreadyPresent = !added, title, kind = isMovie ? "movie" : "trailer" });
         }
 
         /// <summary>
@@ -243,15 +257,30 @@ namespace Jellyfin.Plugin.TrailerPreroll.Api
             return Content(reader.ReadToEnd(), "application/javascript");
         }
 
-        private async Task AddToWatchLaterAsync(Guid userId, Guid itemId)
+        /// <summary>
+        /// Adds <paramref name="itemId"/> to the user's Watch Later playlist (creating it if needed).
+        /// Returns <c>false</c> if the item was already in the playlist (no duplicate added).
+        /// </summary>
+        private async Task<bool> AddToWatchLaterAsync(Guid userId, Guid itemId)
         {
             var existing = _playlistManager.GetPlaylists(userId)
                 .FirstOrDefault(p => string.Equals(p.Name, WatchLaterName, StringComparison.OrdinalIgnoreCase));
 
             if (existing is not null)
             {
+                var contents = _libraryManager.GetItemList(new InternalItemsQuery
+                {
+                    ParentId = existing.Id,
+                    Recursive = true
+                });
+
+                if (contents.Any(i => i.Id.Equals(itemId)))
+                {
+                    return false; // already saved - don't add a duplicate
+                }
+
                 await _playlistManager.AddItemToPlaylistAsync(existing.Id, new[] { itemId }, userId).ConfigureAwait(false);
-                return;
+                return true;
             }
 
             await _playlistManager.CreatePlaylist(new PlaylistCreationRequest
@@ -261,6 +290,7 @@ namespace Jellyfin.Plugin.TrailerPreroll.Api
                 MediaType = MediaType.Video,
                 ItemIdList = new[] { itemId }
             }).ConfigureAwait(false);
+            return true;
         }
 
         private BaseItem? FindMovieByTrailerKey(string key)

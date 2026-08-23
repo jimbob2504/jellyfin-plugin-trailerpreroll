@@ -1,14 +1,14 @@
 {
   "category": "General",
-  "changelog": "Initial public release.",
+  "changelog": "Broaden compatibility to all Jellyfin 10.11.x; add tool-setup diagnostics (yt-dlp/deno/ffmpeg) to the status panel; skip duplicate Watch Later entries.",
   "description": "Plays a cinema-style pre-show of trailers (from your own library and upcoming releases) before movies and TV episodes. Trailers are fetched with yt-dlp into a small, rotating local cache and served from two auto-created libraries.",
   "guid": "b7e9f2a1-4c3d-4e5f-9a8b-6c7d8e9f0a1b",
   "name": "Trailer Preroll",
   "overview": "Cinema-style trailer prerolls before movies and TV.",
   "owner": "jimbob2504",
-  "targetAbi": "10.11.11.0",
+  "targetAbi": "10.11.0.0",
   "timestamp": "2026-08-23T00:00:00.0000000Z",
-  "version": "1.0.0.0",
+  "version": "1.1.0.0",
   "status": "Active",
   "autoUpdate": false,
   "assemblies": []
