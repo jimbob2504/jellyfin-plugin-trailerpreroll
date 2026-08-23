@@ -94,8 +94,12 @@
 
         var url = ac.getUrl('TrailerPreroll/WatchLater?itemId=' + encodeURIComponent(currentItem.Id));
         ac.ajax({ type: 'POST', url: url, dataType: 'json' }).then(function (res) {
-            if (btn) { btn.textContent = '✓ Added to Watch Later'; }
-            toast((res && res.title ? '"' + res.title + '"' : 'Added') + ' — saved to your Watch Later playlist.');
+            var already = res && res.alreadyPresent;
+            var title = res && res.title ? '"' + res.title + '"' : 'This';
+            if (btn) { btn.textContent = already ? '✓ Already saved' : '✓ Added to Watch Later'; }
+            toast(already
+                ? title + ' is already in your Watch Later playlist.'
+                : title + ' — saved to your Watch Later playlist.');
             reset(2500);
         }, function () {
             if (btn) { btn.textContent = 'Failed — try again'; }

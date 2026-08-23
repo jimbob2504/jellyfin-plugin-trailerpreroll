@@ -8,7 +8,9 @@ Trailers are downloaded on a small, rotating schedule with [yt-dlp](https://gith
 muxed with Jellyfin's bundled ffmpeg, and served from two auto-created libraries. They play through
 Jellyfin's built-in **Cinema Mode / Intros** feature.
 
-> Built and tested against **Jellyfin 10.11.11** (.NET 9) on Windows.
+> Built for **Jellyfin 10.11.x** (.NET 9). Developed and tested on **Windows**; it should work on
+> Linux/Docker (paths and tools are resolved per-OS), but that hasn't been verified yet — see the
+> Linux/Docker note below. Reports welcome.
 
 ## Features
 
@@ -79,6 +81,10 @@ TMDB key and cookies path, and click **Download trailers now**.
   web client's `index.html`, re-applied automatically on each server start). It does not appear on
   clients that don't use the Jellyfin web UI (e.g. the MPV desktop app).
 - Trailers are real YouTube videos; some are region-locked or age-restricted and will be skipped.
+- **Linux / Docker**: the plugin resolves `yt-dlp`/`deno`/`ffmpeg` per-OS, so put the Linux builds of
+  `yt-dlp` and `deno` (no `.exe`) in the data folder. The "Want to watch" button needs to write to the
+  web client's `index.html`; if that folder is read-only in your container the button simply won't
+  load (the rest of the plugin still works). This path is not yet tested — feedback appreciated.
 
 ## Building from source
 

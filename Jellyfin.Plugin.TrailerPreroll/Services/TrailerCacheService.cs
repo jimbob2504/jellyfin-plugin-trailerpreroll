@@ -199,6 +199,39 @@ namespace Jellyfin.Plugin.TrailerPreroll.Services
             }
         }
 
+        /// <summary>
+        /// Reports whether the external tools the plugin needs are present, for the settings page's
+        /// status panel. yt-dlp/deno are looked for in the data folder (or the configured yt-dlp path);
+        /// ffmpeg is resolved from Jellyfin's encoder or the server folder.
+        /// </summary>
+        /// <returns>Presence flags plus the resolved yt-dlp/ffmpeg paths (null if not found).</returns>
+        public (bool YtDlp, bool Deno, bool Ffmpeg, string? YtDlpPath, string? FfmpegPath) GetToolStatus()
+        {
+            var isWindows = OperatingSystem.IsWindows();
+
+            var configured = Config.YtDlpPath;
+            string? ytPath = null;
+            if (!string.IsNullOrWhiteSpace(configured) && File.Exists(configured))
+            {
+                ytPath = configured;
+            }
+            else
+            {
+                var candidate = Path.Combine(_appPaths.DataPath, isWindows ? "yt-dlp.exe" : "yt-dlp");
+                if (File.Exists(candidate))
+                {
+                    ytPath = candidate;
+                }
+            }
+
+            var denoPath = Path.Combine(_appPaths.DataPath, isWindows ? "deno.exe" : "deno");
+            var deno = File.Exists(denoPath);
+
+            var ffmpeg = ResolveFfmpeg();
+
+            return (ytPath is not null, deno, ffmpeg is not null, ytPath, ffmpeg);
+        }
+
         private string? ResolveFfmpeg()
         {
             var enc = _mediaEncoder.EncoderPath;
