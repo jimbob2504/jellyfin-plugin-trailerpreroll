@@ -375,26 +375,25 @@ namespace Jellyfin.Plugin.TrailerPreroll.Services
                     }
 
                     var primary = item.GetImageInfo(ImageType.Primary, 0);
-                    if (primary?.Path is not null && primary.Path.EndsWith("-tmdbposter.jpg", StringComparison.OrdinalIgnoreCase))
-                    {
-                        continue; // already set by us
-                    }
-
                     if (primary is not null && primary.Width > 0 && primary.Height > primary.Width)
                     {
                         continue; // already a portrait poster
                     }
 
+                    // Overwrite the canonical "-poster.jpg" (the frame-grab the scanner prefers) with the
+                    // real TMDB poster, so the scanner keeps using our portrait image on future scans.
                     var target = Path.Combine(
                         Path.GetDirectoryName(item.Path)!,
-                        Path.GetFileNameWithoutExtension(item.Path) + "-tmdbposter.jpg");
+                        Path.GetFileNameWithoutExtension(item.Path) + "-poster.jpg");
 
                     if (!await _downloader.DownloadImageAsync(url, target, cancellationToken).ConfigureAwait(false))
                     {
                         continue;
                     }
 
-                    item.SetImage(new ItemImageInfo { Type = ImageType.Primary, Path = target }, 0);
+                    // TMDB w500 posters are 2:3 (500x750); stamp the dims so the item reads as portrait and
+                    // this pass is idempotent (skips it next time).
+                    item.SetImage(new ItemImageInfo { Type = ImageType.Primary, Path = target, Width = 500, Height = 750 }, 0);
                     await _libraryManager.UpdateItemAsync(item, item.GetParent(), ItemUpdateType.ImageUpdate, cancellationToken).ConfigureAwait(false);
                     updated++;
                 }
