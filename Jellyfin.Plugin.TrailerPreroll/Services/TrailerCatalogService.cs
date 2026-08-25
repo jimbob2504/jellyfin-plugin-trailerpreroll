@@ -401,6 +401,9 @@ namespace Jellyfin.Plugin.TrailerPreroll.Services
                 if (updated > 0)
                 {
                     _logger.LogInformation("Trailer Preroll set {Count} upcoming poster(s) from TMDB.", updated);
+                    // The poster files changed on disk; rescan so Jellyfin re-reads their (portrait)
+                    // dimensions and reshapes the cards, instead of keeping the stale landscape aspect.
+                    _libraryManager.QueueLibraryScan();
                 }
 
                 return updated;
