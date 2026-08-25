@@ -124,6 +124,33 @@ namespace Jellyfin.Plugin.TrailerPreroll.Api
         }
 
         /// <summary>
+        /// Downloads (or updates) yt-dlp and deno for this server's OS into the data folder, in the
+        /// background. Runs from the settings page; check the status panel afterwards to confirm.
+        /// </summary>
+        /// <returns>No content.</returns>
+        [HttpPost("InstallTools")]
+        [Authorize(Policy = "RequiresElevation")]
+        [Produces("application/json")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        public ActionResult InstallTools()
+        {
+            _logger.LogInformation("Trailer Preroll tool download requested.");
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await _downloader.InstallToolsAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Trailer Preroll tool download failed.");
+                }
+            });
+
+            return NoContent();
+        }
+
+        /// <summary>
         /// Returns download-pipeline health for the settings page.
         /// </summary>
         /// <returns>A health summary.</returns>

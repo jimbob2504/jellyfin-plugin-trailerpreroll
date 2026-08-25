@@ -1,7 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.IO.Compression;
+using System.Linq;
+using System.Net.Http;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.TrailerPreroll.Configuration;
@@ -19,6 +24,7 @@ namespace Jellyfin.Plugin.TrailerPreroll.Services
         private readonly IApplicationPaths _appPaths;
         private readonly IMediaEncoder _mediaEncoder;
         private readonly PrerollHealth _health;
+        private readonly IHttpClientFactory _httpClientFactory;
         private readonly ILogger<TrailerCacheService> _logger;
 
         private int _ytDlpMissingLogged;
@@ -30,12 +36,14 @@ namespace Jellyfin.Plugin.TrailerPreroll.Services
         /// <param name="appPaths">Application paths.</param>
         /// <param name="mediaEncoder">Media encoder (provides the ffmpeg path).</param>
         /// <param name="health">Download health tracker.</param>
+        /// <param name="httpClientFactory">HTTP client factory (for downloading yt-dlp/deno).</param>
         /// <param name="logger">Logger.</param>
-        public TrailerCacheService(IApplicationPaths appPaths, IMediaEncoder mediaEncoder, PrerollHealth health, ILogger<TrailerCacheService> logger)
+        public TrailerCacheService(IApplicationPaths appPaths, IMediaEncoder mediaEncoder, PrerollHealth health, IHttpClientFactory httpClientFactory, ILogger<TrailerCacheService> logger)
         {
             _appPaths = appPaths;
             _mediaEncoder = mediaEncoder;
             _health = health;
+            _httpClientFactory = httpClientFactory;
             _logger = logger;
         }
 
@@ -230,6 +238,134 @@ namespace Jellyfin.Plugin.TrailerPreroll.Services
             var ffmpeg = ResolveFfmpeg();
 
             return (ytPath is not null, deno, ffmpeg is not null, ytPath, ffmpeg);
+        }
+
+        /// <summary>
+        /// Downloads (or updates) the correct yt-dlp and deno builds for this OS/architecture into the
+        /// server data folder, from their official GitHub "latest" releases. Overwrites existing copies
+        /// (so it doubles as an updater). ffmpeg is not fetched - Jellyfin provides it.
+        /// </summary>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <returns>Per-tool success flags and a short status message.</returns>
+        public async Task<(bool YtDlp, bool Deno, string Message)> InstallToolsAsync(CancellationToken cancellationToken)
+        {
+            var dataDir = _appPaths.DataPath;
+            Directory.CreateDirectory(dataDir);
+
+            var isWindows = OperatingSystem.IsWindows();
+            var isMac = OperatingSystem.IsMacOS();
+            var arm64 = RuntimeInformation.OSArchitecture == Architecture.Arm64;
+
+            var messages = new List<string>();
+            var http = _httpClientFactory.CreateClient();
+            http.Timeout = TimeSpan.FromMinutes(5);
+            if (!http.DefaultRequestHeaders.UserAgent.Any())
+            {
+                http.DefaultRequestHeaders.UserAgent.ParseAdd("Jellyfin-TrailerPreroll");
+            }
+
+            // ----- yt-dlp: a single self-contained binary -----
+            var ytAsset = isWindows ? "yt-dlp.exe" : isMac ? "yt-dlp_macos" : (arm64 ? "yt-dlp_linux_aarch64" : "yt-dlp_linux");
+            var ytUrl = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/" + ytAsset;
+            var ytTarget = Path.Combine(dataDir, isWindows ? "yt-dlp.exe" : "yt-dlp");
+            bool ytOk;
+            try
+            {
+                await DownloadToFileAsync(http, ytUrl, ytTarget, cancellationToken).ConfigureAwait(false);
+                MakeExecutable(ytTarget);
+                ytOk = File.Exists(ytTarget);
+                messages.Add(ytOk ? "yt-dlp OK" : "yt-dlp: no file produced");
+            }
+            catch (Exception ex)
+            {
+                ytOk = false;
+                messages.Add("yt-dlp failed: " + ex.Message);
+                _logger.LogWarning(ex, "Trailer Preroll yt-dlp install failed ({Url})", ytUrl);
+            }
+
+            // ----- deno: shipped as a zip; extract the binary -----
+            var denoAsset = isWindows
+                ? (arm64 ? "deno-aarch64-pc-windows-msvc.zip" : "deno-x86_64-pc-windows-msvc.zip")
+                : isMac
+                    ? (arm64 ? "deno-aarch64-apple-darwin.zip" : "deno-x86_64-apple-darwin.zip")
+                    : (arm64 ? "deno-aarch64-unknown-linux-gnu.zip" : "deno-x86_64-unknown-linux-gnu.zip");
+            var denoUrl = "https://github.com/denoland/deno/releases/latest/download/" + denoAsset;
+            var denoTarget = Path.Combine(dataDir, isWindows ? "deno.exe" : "deno");
+            bool denoOk;
+            try
+            {
+                var tmpZip = Path.Combine(dataDir, "deno_download.zip");
+                await DownloadToFileAsync(http, denoUrl, tmpZip, cancellationToken).ConfigureAwait(false);
+                ExtractDeno(tmpZip, denoTarget, isWindows);
+                try
+                {
+                    File.Delete(tmpZip);
+                }
+                catch (IOException)
+                {
+                }
+
+                MakeExecutable(denoTarget);
+                denoOk = File.Exists(denoTarget);
+                messages.Add(denoOk ? "deno OK" : "deno: binary not found in archive");
+            }
+            catch (Exception ex)
+            {
+                denoOk = false;
+                messages.Add("deno failed: " + ex.Message);
+                _logger.LogWarning(ex, "Trailer Preroll deno install failed ({Url})", denoUrl);
+            }
+
+            _logger.LogInformation("Trailer Preroll tool install complete: yt-dlp={Yt}, deno={Deno}", ytOk, denoOk);
+            return (ytOk, denoOk, string.Join("; ", messages));
+        }
+
+        private static async Task DownloadToFileAsync(HttpClient http, string url, string target, CancellationToken cancellationToken)
+        {
+            using var resp = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+            resp.EnsureSuccessStatusCode();
+
+            var tmp = target + ".dl";
+            await using (var fs = new FileStream(tmp, FileMode.Create, FileAccess.Write, FileShare.None))
+            {
+                await resp.Content.CopyToAsync(fs, cancellationToken).ConfigureAwait(false);
+            }
+
+            File.Move(tmp, target, true);
+        }
+
+        private static void ExtractDeno(string zipPath, string denoTarget, bool isWindows)
+        {
+            using var archive = ZipFile.OpenRead(zipPath);
+            var wanted = isWindows ? "deno.exe" : "deno";
+            var entry = archive.Entries.FirstOrDefault(e =>
+                string.Equals(Path.GetFileName(e.FullName), wanted, StringComparison.OrdinalIgnoreCase));
+            if (entry is null)
+            {
+                throw new InvalidOperationException("deno binary not found in the downloaded archive");
+            }
+
+            var tmp = denoTarget + ".dl";
+            entry.ExtractToFile(tmp, true);
+            File.Move(tmp, denoTarget, true);
+        }
+
+        private static void MakeExecutable(string path)
+        {
+            if (OperatingSystem.IsWindows() || !File.Exists(path))
+            {
+                return;
+            }
+
+            try
+            {
+                var mode = File.GetUnixFileMode(path);
+                File.SetUnixFileMode(path, mode | UnixFileMode.UserExecute | UnixFileMode.GroupExecute | UnixFileMode.OtherExecute);
+            }
+            catch (Exception)
+            {
+                // Non-fatal: the file is downloaded; only the +x bit failed.
+            }
         }
 
         private string? ResolveFfmpeg()

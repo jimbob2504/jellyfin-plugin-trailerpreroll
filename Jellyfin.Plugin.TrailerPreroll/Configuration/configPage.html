@@ -20,6 +20,14 @@
                         <button is="emby-button" type="button" id="RefreshStatusBtn" class="raised">
                             <span>Refresh status</span>
                         </button>
+                        <button is="emby-button" type="button" id="InstallToolsBtn" class="raised">
+                            <span>Download / update tools</span>
+                        </button>
+                    </div>
+                    <div class="fieldDescription">
+                        "Download / update tools" fetches the correct yt-dlp and deno for this server
+                        automatically (into the data folder). You still need to supply your own
+                        cookies.txt. Re-run it any time to update yt-dlp.
                     </div>
                 </div>
 
@@ -594,6 +602,17 @@
 
             document.querySelector('#RefreshStatusBtn').addEventListener('click', function () {
                 renderHealth(document.querySelector('#TrailerPrerollConfigPage'));
+            });
+
+            document.querySelector('#InstallToolsBtn').addEventListener('click', function () {
+                Dashboard.showLoadingMsg();
+                ApiClient.ajax({ type: 'POST', url: ApiClient.getUrl('TrailerPreroll/InstallTools') }).then(function () {
+                    Dashboard.hideLoadingMsg();
+                    Dashboard.alert('Downloading yt-dlp and deno in the background (~1 minute). Click "Refresh status" shortly to confirm they show a green tick.');
+                }, function () {
+                    Dashboard.hideLoadingMsg();
+                    Dashboard.alert('Could not start the tool download. Check the server logs.');
+                });
             });
 
             document.querySelector('#DownloadNowBtn').addEventListener('click', function () {
