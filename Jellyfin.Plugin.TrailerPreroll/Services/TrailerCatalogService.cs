@@ -299,19 +299,23 @@ namespace Jellyfin.Plugin.TrailerPreroll.Services
         {
             try
             {
-                var libraryYears = GetLibraryKeyYears();
-                var upcomingYears = _upcomingPool
-                    .Where(p => p.Year.HasValue)
-                    .GroupBy(p => p.YoutubeKey, StringComparer.Ordinal)
-                    .ToDictionary(g => g.Key, g => g.First().Year!.Value, StringComparer.Ordinal);
+                var libraryInfo = GetLibraryKeyInfo();
+                var upcomingInfo = new Dictionary<string, (int? Year, string? Poster)>(StringComparer.Ordinal);
+                foreach (var p in _upcomingPool)
+                {
+                    if (!upcomingInfo.ContainsKey(p.YoutubeKey))
+                    {
+                        upcomingInfo[p.YoutubeKey] = (p.Year, null);
+                    }
+                }
 
                 var updated = 0;
-                updated += await CleanupFolderNamesAsync(TrailerLibraryService.LibraryName, libraryYears, cancellationToken).ConfigureAwait(false);
-                updated += await CleanupFolderNamesAsync(TrailerLibraryService.UpcomingName, upcomingYears, cancellationToken).ConfigureAwait(false);
+                updated += await CleanupFolderMetadataAsync(TrailerLibraryService.LibraryName, libraryInfo, cancellationToken).ConfigureAwait(false);
+                updated += await CleanupFolderMetadataAsync(TrailerLibraryService.UpcomingName, upcomingInfo, cancellationToken).ConfigureAwait(false);
 
                 if (updated > 0)
                 {
-                    _logger.LogInformation("Trailer Preroll tidied {Count} trailer name(s).", updated);
+                    _logger.LogInformation("Trailer Preroll tidied {Count} trailer item(s).", updated);
                 }
 
                 return updated;
@@ -323,7 +327,7 @@ namespace Jellyfin.Plugin.TrailerPreroll.Services
             }
         }
 
-        private async Task<int> CleanupFolderNamesAsync(string libraryName, IReadOnlyDictionary<string, int> keyYears, CancellationToken cancellationToken)
+        private async Task<int> CleanupFolderMetadataAsync(string libraryName, IReadOnlyDictionary<string, (int? Year, string? Poster)> info, CancellationToken cancellationToken)
         {
             var libId = _libraries.GetLibraryId(libraryName);
             if (libId.Equals(Guid.Empty))
@@ -352,47 +356,66 @@ namespace Jellyfin.Plugin.TrailerPreroll.Services
                     continue;
                 }
 
+                info.TryGetValue(key, out var meta);
+                var year = meta.Year;
+
                 var clean = StripKey(Path.GetFileNameWithoutExtension(item.Path));
-                int? year = keyYears.TryGetValue(key, out var y) && y > 0 ? y : null;
-                if (year.HasValue && !clean.EndsWith("(" + year.Value + ")", StringComparison.Ordinal))
+                if (year.HasValue && year.Value > 0 && !clean.EndsWith("(" + year.Value + ")", StringComparison.Ordinal))
                 {
                     clean = clean + " (" + year.Value + ")";
                 }
 
-                // Only touch items whose visible name/year is actually wrong. LockedFields is not
-                // hydrated on items from GetItemList, so we must NOT gate on it (that would re-update
-                // all items every tick). We still (re)apply the Name lock whenever we do update, so a
-                // later metadata refresh won't re-append the id.
+                // LockedFields is not hydrated on items from GetItemList, so we gate only on the visible
+                // values actually being wrong (never on the lock) to avoid re-updating everything each tick.
                 var needsName = !string.Equals(item.Name, clean, StringComparison.Ordinal);
-                var needsYear = year.HasValue && item.ProductionYear != year.Value;
-                if (!needsName && !needsYear)
+                var needsYear = year.HasValue && year.Value > 0 && item.ProductionYear != year.Value;
+                var poster = meta.Poster;
+                var needsPoster = !string.IsNullOrEmpty(poster)
+                    && File.Exists(poster)
+                    && !string.Equals(item.PrimaryImagePath, poster, StringComparison.OrdinalIgnoreCase);
+
+                if (!needsName && !needsYear && !needsPoster)
                 {
                     continue;
                 }
 
-                item.Name = clean;
-                if (needsYear)
+                ItemUpdateType reason = 0;
+
+                if (needsName || needsYear)
                 {
-                    item.ProductionYear = year;
+                    item.Name = clean;
+                    if (needsYear)
+                    {
+                        item.ProductionYear = year;
+                    }
+
+                    var locked = (item.LockedFields ?? Array.Empty<MetadataField>()).ToList();
+                    if (!locked.Contains(MetadataField.Name))
+                    {
+                        locked.Add(MetadataField.Name);
+                        item.LockedFields = locked.ToArray();
+                    }
+
+                    reason |= ItemUpdateType.MetadataEdit;
                 }
 
-                var locked = (item.LockedFields ?? Array.Empty<MetadataField>()).ToList();
-                if (!locked.Contains(MetadataField.Name))
+                if (needsPoster)
                 {
-                    locked.Add(MetadataField.Name);
-                    item.LockedFields = locked.ToArray();
+                    // Use the source movie's poster so every library trailer shows the real film poster.
+                    item.SetImage(new ItemImageInfo { Type = ImageType.Primary, Path = poster! }, 0);
+                    reason |= ItemUpdateType.ImageUpdate;
                 }
 
-                await _libraryManager.UpdateItemAsync(item, item.GetParent(), ItemUpdateType.MetadataEdit, cancellationToken).ConfigureAwait(false);
+                await _libraryManager.UpdateItemAsync(item, item.GetParent(), reason, cancellationToken).ConfigureAwait(false);
                 updated++;
             }
 
             return updated;
         }
 
-        private Dictionary<string, int> GetLibraryKeyYears()
+        private Dictionary<string, (int? Year, string? Poster)> GetLibraryKeyInfo()
         {
-            var map = new Dictionary<string, int>(StringComparer.Ordinal);
+            var map = new Dictionary<string, (int? Year, string? Poster)>(StringComparer.Ordinal);
             var movies = _libraryManager.GetItemList(new InternalItemsQuery
             {
                 IncludeItemTypes = new[] { BaseItemKind.Movie },
@@ -402,17 +425,20 @@ namespace Jellyfin.Plugin.TrailerPreroll.Services
 
             foreach (var movie in movies)
             {
-                if (!movie.ProductionYear.HasValue || movie.RemoteTrailers is null)
+                if (movie.RemoteTrailers is null)
                 {
                     continue;
                 }
+
+                var poster = movie.PrimaryImagePath;
+                var posterOrNull = string.IsNullOrEmpty(poster) ? null : poster;
 
                 foreach (var trailer in movie.RemoteTrailers)
                 {
                     var key = YoutubeId.TryExtract(trailer.Url);
                     if (key is not null && !map.ContainsKey(key))
                     {
-                        map[key] = movie.ProductionYear.Value;
+                        map[key] = (movie.ProductionYear, posterOrNull);
                     }
                 }
             }
@@ -424,6 +450,114 @@ namespace Jellyfin.Plugin.TrailerPreroll.Services
         {
             var s = KeyInName.Replace(name, " ").Trim();
             return string.IsNullOrEmpty(s) ? "Trailer" : s;
+        }
+
+        /// <summary>
+        /// A title+year signature used to avoid caching two trailers for the same film (e.g. when the
+        /// same movie exists twice in the library).
+        /// </summary>
+        private static string NormalizeTitle(BaseItem movie)
+        {
+            var name = (movie.Name ?? string.Empty).Trim().ToLowerInvariant();
+            return name + "|" + (movie.ProductionYear?.ToString(CultureInfo.InvariantCulture) ?? string.Empty);
+        }
+
+        /// <summary>
+        /// Removes on-disk trailers that share the same title (keeping one), e.g. leftovers from a film
+        /// that was duplicated in the library. Watch-Later-protected trailers are never removed. Deletes
+        /// the mp4 and its sidecars (.nfo, -poster.jpg, etc.).
+        /// </summary>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <returns>The number of duplicate files removed.</returns>
+        public int RemoveDuplicateTrailers(CancellationToken cancellationToken)
+        {
+            var removed = 0;
+            try
+            {
+                var protectedKeys = GetProtectedKeys();
+
+                // The keys the pools actually want - prefer keeping these so a later sync doesn't just
+                // re-download the copy we deleted (which would cause a delete/re-download ping-pong).
+                var desiredKeys = new HashSet<string>(
+                    _libraryPool.Concat(_upcomingPool).Select(p => p.YoutubeKey),
+                    StringComparer.Ordinal);
+
+                foreach (var dir in new[] { _libraries.LibraryDir, _libraries.UpcomingDir })
+                {
+                    if (!Directory.Exists(dir))
+                    {
+                        continue;
+                    }
+
+                    var files = Directory.GetFiles(dir, "*.mp4")
+                        .Where(f => !Path.GetFileName(f).StartsWith("dl_", StringComparison.Ordinal))
+                        .ToList();
+
+                    foreach (var group in files.GroupBy(f => StripKey(Path.GetFileNameWithoutExtension(f)), StringComparer.OrdinalIgnoreCase))
+                    {
+                        var dupes = group.ToList();
+                        if (dupes.Count <= 1)
+                        {
+                            continue;
+                        }
+
+                        cancellationToken.ThrowIfCancellationRequested();
+
+                        var keep = dupes.FirstOrDefault(f => IsKeyIn(f, desiredKeys))
+                            ?? dupes.FirstOrDefault(f => IsKeyIn(f, protectedKeys))
+                            ?? dupes.OrderByDescending(f => new FileInfo(f).LastWriteTimeUtc).First();
+
+                        foreach (var f in dupes)
+                        {
+                            if (f == keep || IsProtectedFile(f, protectedKeys))
+                            {
+                                continue;
+                            }
+
+                            DeleteTrailerFiles(dir, f);
+                            removed++;
+                        }
+                    }
+                }
+
+                if (removed > 0)
+                {
+                    _logger.LogInformation("Trailer Preroll removed {Count} duplicate trailer(s) (same title).", removed);
+                    _libraryManager.QueueLibraryScan();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Trailer Preroll duplicate removal failed");
+            }
+
+            return removed;
+        }
+
+        private static bool IsProtectedFile(string file, HashSet<string> protectedKeys) => IsKeyIn(file, protectedKeys);
+
+        private static bool IsKeyIn(string file, HashSet<string> keys)
+        {
+            var key = PrerollItem.KeyFromFileName(file);
+            return key is not null && keys.Contains(key);
+        }
+
+        private static void DeleteTrailerFiles(string dir, string mp4Path)
+        {
+            var baseName = Path.GetFileNameWithoutExtension(mp4Path);
+            foreach (var f in Directory.GetFiles(dir))
+            {
+                if (Path.GetFileName(f).StartsWith(baseName, StringComparison.Ordinal))
+                {
+                    try
+                    {
+                        File.Delete(f);
+                    }
+                    catch (IOException)
+                    {
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -534,8 +668,15 @@ namespace Jellyfin.Plugin.TrailerPreroll.Services
             });
 
             var byKey = new Dictionary<string, PrerollItem>(StringComparer.Ordinal);
+            var seenTitles = new HashSet<string>(StringComparer.Ordinal);
             foreach (var movie in movies)
             {
+                var title = NormalizeTitle(movie);
+                if (seenTitles.Contains(title))
+                {
+                    continue; // same film already contributed a trailer (duplicate movie in library)
+                }
+
                 var trailers = movie.RemoteTrailers;
                 if (trailers is null)
                 {
@@ -551,6 +692,7 @@ namespace Jellyfin.Plugin.TrailerPreroll.Services
                     }
 
                     byKey[key] = new PrerollItem(key, movie.Name, PrerollCategory.Library) { Year = movie.ProductionYear };
+                    seenTitles.Add(title);
                     break;
                 }
             }
@@ -698,8 +840,15 @@ namespace Jellyfin.Plugin.TrailerPreroll.Services
             });
 
             var byKey = new Dictionary<string, PrerollItem>(StringComparer.Ordinal);
+            var seenTitles = new HashSet<string>(StringComparer.Ordinal);
             foreach (var movie in movies)
             {
+                var title = NormalizeTitle(movie);
+                if (seenTitles.Contains(title))
+                {
+                    continue; // same film already contributed a trailer (duplicate movie in library)
+                }
+
                 var trailers = movie.RemoteTrailers;
                 if (trailers is null || trailers.Count == 0)
                 {
@@ -715,6 +864,7 @@ namespace Jellyfin.Plugin.TrailerPreroll.Services
                     }
 
                     byKey[key] = new PrerollItem(key, movie.Name, PrerollCategory.Library) { Year = movie.ProductionYear };
+                    seenTitles.Add(title);
                     break;
                 }
             }

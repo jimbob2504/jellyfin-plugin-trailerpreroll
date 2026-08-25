@@ -72,6 +72,15 @@ namespace Jellyfin.Plugin.TrailerPreroll.Services
         }
 
         /// <summary>
+        /// Gets a snapshot of every tracked key and its play count.
+        /// </summary>
+        /// <returns>A copy of the key-to-count map.</returns>
+        public IReadOnlyDictionary<string, int> GetAll()
+        {
+            return new Dictionary<string, int>(_counts, StringComparer.Ordinal);
+        }
+
+        /// <summary>
         /// Forgets a key (e.g. after it has been retired/replaced).
         /// </summary>
         /// <param name="key">The YouTube key.</param>

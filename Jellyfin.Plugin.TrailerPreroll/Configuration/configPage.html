@@ -292,6 +292,18 @@
                     <div id="UserOverridesContainer"></div>
                 </div>
 
+                <div class="verticalSection">
+                    <h2>Trailer Play Counts</h2>
+                    <div class="fieldDescription" style="margin-bottom:0.5em;">
+                        How many times each cached trailer has played (this is what drives the
+                        "replace after N plays" rotation).
+                    </div>
+                    <button is="emby-button" type="button" id="LoadPlayCountsBtn" class="raised">
+                        <span>Show play counts</span>
+                    </button>
+                    <div id="PlayCountsPanel" style="margin-top:0.75em;"></div>
+                </div>
+
                 <div>
                     <button is="emby-button" type="submit" class="raised button-submit block">
                         <span>Save</span>
@@ -602,6 +614,27 @@
 
             document.querySelector('#RefreshStatusBtn').addEventListener('click', function () {
                 renderHealth(document.querySelector('#TrailerPrerollConfigPage'));
+            });
+
+            document.querySelector('#LoadPlayCountsBtn').addEventListener('click', function () {
+                var panel = document.querySelector('#PlayCountsPanel');
+                panel.innerHTML = '<div class="fieldDescription">Loading&hellip;</div>';
+                ApiClient.getJSON(ApiClient.getUrl('TrailerPreroll/PlayCounts')).then(function (res) {
+                    if (!res.items || !res.items.length) {
+                        panel.innerHTML = '<div class="fieldDescription">No plays recorded yet.</div>';
+                        return;
+                    }
+                    var rows = res.items.map(function (it) {
+                        return '<tr><td style="padding:2px 16px 2px 0;">' + escapeHtml(it.title) +
+                            '</td><td style="text-align:right;">' + it.count + '</td></tr>';
+                    }).join('');
+                    panel.innerHTML =
+                        '<table style="border-collapse:collapse;line-height:1.6;">' +
+                        '<thead><tr><th style="text-align:left;padding-right:16px;">Trailer</th>' +
+                        '<th style="text-align:right;">Plays</th></tr></thead><tbody>' + rows + '</tbody></table>';
+                }, function () {
+                    panel.innerHTML = '<div class="fieldDescription">Could not load play counts.</div>';
+                });
             });
 
             document.querySelector('#InstallToolsBtn').addEventListener('click', function () {

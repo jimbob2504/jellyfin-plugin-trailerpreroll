@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -32,6 +33,7 @@ namespace Jellyfin.Plugin.TrailerPreroll.Api
         private readonly TrailerCatalogService _catalog;
         private readonly TrailerCacheService _downloader;
         private readonly PrerollHealth _health;
+        private readonly PrerollPlayTracker _playTracker;
         private readonly ILibraryManager _libraryManager;
         private readonly IPlaylistManager _playlistManager;
         private readonly IAuthorizationContext _authContext;
@@ -44,6 +46,7 @@ namespace Jellyfin.Plugin.TrailerPreroll.Api
         /// <param name="catalog">Rotation service.</param>
         /// <param name="downloader">Trailer downloader (for tool-status checks).</param>
         /// <param name="health">Download health tracker.</param>
+        /// <param name="playTracker">Play-count tracker.</param>
         /// <param name="libraryManager">Library manager.</param>
         /// <param name="playlistManager">Playlist manager.</param>
         /// <param name="authContext">Authorization context (to identify the calling user).</param>
@@ -53,6 +56,7 @@ namespace Jellyfin.Plugin.TrailerPreroll.Api
             TrailerCatalogService catalog,
             TrailerCacheService downloader,
             PrerollHealth health,
+            PrerollPlayTracker playTracker,
             ILibraryManager libraryManager,
             IPlaylistManager playlistManager,
             IAuthorizationContext authContext,
@@ -62,6 +66,7 @@ namespace Jellyfin.Plugin.TrailerPreroll.Api
             _catalog = catalog;
             _downloader = downloader;
             _health = health;
+            _playTracker = playTracker;
             _libraryManager = libraryManager;
             _playlistManager = playlistManager;
             _authContext = authContext;
@@ -266,6 +271,32 @@ namespace Jellyfin.Plugin.TrailerPreroll.Api
         }
 
         /// <summary>
+        /// Returns how many times each cached trailer has played, most-played first, for the settings page.
+        /// </summary>
+        /// <returns>A list of play-count rows.</returns>
+        [HttpGet("PlayCounts")]
+        [Authorize(Policy = "RequiresElevation")]
+        [Produces("application/json")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public ActionResult<object> PlayCounts()
+        {
+            var counts = _playTracker.GetAll();
+            var titles = BuildKeyTitleMap();
+
+            var items = counts
+                .Select(kv => new
+                {
+                    count = kv.Value,
+                    title = titles.TryGetValue(kv.Key, out var t) ? t : kv.Key
+                })
+                .OrderByDescending(r => r.count)
+                .ThenBy(r => r.title, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            return new { total = items.Count, items };
+        }
+
+        /// <summary>
         /// Serves the client script injected into the web player (loaded by a plain script tag, so it
         /// must be anonymous).
         /// </summary>
@@ -347,6 +378,39 @@ namespace Jellyfin.Plugin.TrailerPreroll.Api
             }
 
             return null;
+        }
+
+        private Dictionary<string, string> BuildKeyTitleMap()
+        {
+            var map = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var dir in new[] { _libraries.LibraryDir, _libraries.UpcomingDir })
+            {
+                if (!Directory.Exists(dir))
+                {
+                    continue;
+                }
+
+                foreach (var f in Directory.GetFiles(dir, "*.mp4"))
+                {
+                    if (Path.GetFileName(f).StartsWith("dl_", StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+
+                    var key = PrerollItem.KeyFromFileName(f);
+                    if (string.IsNullOrEmpty(key) || map.ContainsKey(key))
+                    {
+                        continue;
+                    }
+
+                    var title = System.Text.RegularExpressions.Regex
+                        .Replace(Path.GetFileNameWithoutExtension(f), @"\s*\[[A-Za-z0-9_-]{11}\]\s*", " ")
+                        .Trim();
+                    map[key] = string.IsNullOrEmpty(title) ? key : title;
+                }
+            }
+
+            return map;
         }
 
         private static int CountCached(string dir)
