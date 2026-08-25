@@ -320,6 +320,29 @@ namespace Jellyfin.Plugin.TrailerPreroll.Services
             return (ytOk, denoOk, string.Join("; ", messages));
         }
 
+        /// <summary>
+        /// Downloads an image (e.g. a TMDB poster) to a local file. Returns whether the file exists after.
+        /// </summary>
+        /// <param name="url">The image URL.</param>
+        /// <param name="targetPath">The destination file path.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <returns><c>true</c> on success.</returns>
+        public async Task<bool> DownloadImageAsync(string url, string targetPath, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var http = _httpClientFactory.CreateClient();
+                http.Timeout = TimeSpan.FromSeconds(60);
+                await DownloadToFileAsync(http, url, targetPath, cancellationToken).ConfigureAwait(false);
+                return File.Exists(targetPath);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Trailer Preroll image download failed for {Url}", url);
+                return false;
+            }
+        }
+
         private static async Task DownloadToFileAsync(HttpClient http, string url, string target, CancellationToken cancellationToken)
         {
             using var resp = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);

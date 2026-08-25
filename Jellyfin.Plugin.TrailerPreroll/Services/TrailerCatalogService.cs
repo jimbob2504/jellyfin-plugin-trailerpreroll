@@ -327,6 +327,92 @@ namespace Jellyfin.Plugin.TrailerPreroll.Services
             }
         }
 
+        /// <summary>
+        /// Gives upcoming trailers a real portrait poster from TMDB. Unmatched upcoming films otherwise
+        /// end up with a landscape video frame-grab as their "poster", which looks cropped in poster view.
+        /// Idempotent: skips items that already have our TMDB poster or an existing portrait image.
+        /// </summary>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <returns>The number of posters applied.</returns>
+        public async Task<int> EnsureUpcomingPostersAsync(CancellationToken cancellationToken)
+        {
+            try
+            {
+                var libId = _libraries.GetLibraryId(TrailerLibraryService.UpcomingName);
+                if (libId.Equals(Guid.Empty))
+                {
+                    return 0;
+                }
+
+                var urls = new Dictionary<string, string>(StringComparer.Ordinal);
+                foreach (var p in _upcomingPool)
+                {
+                    if (!string.IsNullOrEmpty(p.ImageUrl) && !urls.ContainsKey(p.YoutubeKey))
+                    {
+                        urls[p.YoutubeKey] = p.ImageUrl!;
+                    }
+                }
+
+                if (urls.Count == 0)
+                {
+                    return 0;
+                }
+
+                var items = _libraryManager.GetItemList(new InternalItemsQuery { ParentId = libId, Recursive = true });
+                var updated = 0;
+                foreach (var item in items)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (item is not Video || string.IsNullOrEmpty(item.Path))
+                    {
+                        continue;
+                    }
+
+                    var key = PrerollItem.KeyFromFileName(item.Path);
+                    if (key is null || !urls.TryGetValue(key, out var url))
+                    {
+                        continue;
+                    }
+
+                    var primary = item.GetImageInfo(ImageType.Primary, 0);
+                    if (primary?.Path is not null && primary.Path.EndsWith("-tmdbposter.jpg", StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue; // already set by us
+                    }
+
+                    if (primary is not null && primary.Width > 0 && primary.Height > primary.Width)
+                    {
+                        continue; // already a portrait poster
+                    }
+
+                    var target = Path.Combine(
+                        Path.GetDirectoryName(item.Path)!,
+                        Path.GetFileNameWithoutExtension(item.Path) + "-tmdbposter.jpg");
+
+                    if (!await _downloader.DownloadImageAsync(url, target, cancellationToken).ConfigureAwait(false))
+                    {
+                        continue;
+                    }
+
+                    item.SetImage(new ItemImageInfo { Type = ImageType.Primary, Path = target }, 0);
+                    await _libraryManager.UpdateItemAsync(item, item.GetParent(), ItemUpdateType.ImageUpdate, cancellationToken).ConfigureAwait(false);
+                    updated++;
+                }
+
+                if (updated > 0)
+                {
+                    _logger.LogInformation("Trailer Preroll set {Count} upcoming poster(s) from TMDB.", updated);
+                }
+
+                return updated;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Trailer Preroll upcoming poster fetch failed");
+                return 0;
+            }
+        }
+
         private async Task<int> CleanupFolderMetadataAsync(string libraryName, IReadOnlyDictionary<string, (int? Year, string? Poster)> info, CancellationToken cancellationToken)
         {
             var libId = _libraries.GetLibraryId(libraryName);
@@ -935,7 +1021,14 @@ namespace Jellyfin.Plugin.TrailerPreroll.Services
                             continue;
                         }
 
-                        byKey[key] = new PrerollItem(key, movie.Title, PrerollCategory.Upcoming) { Year = release.Year };
+                        var posterUrl = string.IsNullOrEmpty(movie.PosterPath)
+                            ? null
+                            : "https://image.tmdb.org/t/p/w500" + movie.PosterPath;
+                        byKey[key] = new PrerollItem(key, movie.Title, PrerollCategory.Upcoming)
+                        {
+                            Year = release.Year,
+                            ImageUrl = posterUrl
+                        };
                     }
                 }
 

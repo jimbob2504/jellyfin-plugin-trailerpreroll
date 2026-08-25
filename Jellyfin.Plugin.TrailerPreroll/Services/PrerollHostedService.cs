@@ -148,6 +148,7 @@ namespace Jellyfin.Plugin.TrailerPreroll.Services
                 await _catalog.RollReplaceAsync(maxPerRun: 3, CancellationToken.None).ConfigureAwait(false);
                 _catalog.RemoveDuplicateTrailers(CancellationToken.None);
                 await _catalog.CleanupItemNamesAsync(CancellationToken.None).ConfigureAwait(false);
+                await _catalog.EnsureUpcomingPostersAsync(CancellationToken.None).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
