@@ -116,6 +116,8 @@ namespace Jellyfin.Plugin.TrailerPreroll.Configuration
             YtDlpCookiesPath = string.Empty;
             RotateAfterPlays = 5;
 
+            AllowedTrailerLanguages = new List<string>();
+
             UserOverrides = new List<UserTrailerOverride>();
         }
 
@@ -250,6 +252,16 @@ namespace Jellyfin.Plugin.TrailerPreroll.Configuration
         /// browser). Greatly improves download reliability against YouTube bot detection.
         /// </summary>
         public string YtDlpCookiesPath { get; set; }
+
+        // ----- Languages -----
+
+        /// <summary>
+        /// Gets or sets the ISO 639-1 language codes (e.g. "en", "fr") whose films are eligible for
+        /// trailers. A library film is matched on its audio track language; an upcoming film on its
+        /// TMDB original language. An empty list means no language filtering (every language is
+        /// allowed). Films whose language can't be determined are always included.
+        /// </summary>
+        public List<string> AllowedTrailerLanguages { get; set; }
 
         // ----- Per-user overrides -----
 

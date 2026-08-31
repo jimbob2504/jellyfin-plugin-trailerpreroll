@@ -74,6 +74,74 @@ namespace Jellyfin.Plugin.TrailerPreroll.Services
         private static PluginConfiguration Config => Plugin.Instance!.Config;
 
         /// <summary>
+        /// The set of allowed ISO 639-1 language codes from config. Empty means "no filtering".
+        /// </summary>
+        private static HashSet<string> AllowedLanguages(PluginConfiguration config)
+        {
+            var set = new HashSet<string>(StringComparer.Ordinal);
+            if (config.AllowedTrailerLanguages is null)
+            {
+                return set;
+            }
+
+            foreach (var raw in config.AllowedTrailerLanguages)
+            {
+                var code = TrailerLanguages.ToIso1(raw);
+                if (code is not null)
+                {
+                    set.Add(code);
+                }
+            }
+
+            return set;
+        }
+
+        /// <summary>
+        /// Whether a library film's language is allowed. Matched on its audio track language(s).
+        /// Returns true when no filter is set, or when the film's language can't be determined
+        /// (we never hide a film just because its metadata lacks a language tag).
+        /// </summary>
+        private bool IsLibraryLanguageAllowed(BaseItem movie, HashSet<string> allowed)
+        {
+            if (allowed.Count == 0)
+            {
+                return true;
+            }
+
+            try
+            {
+                var known = false;
+                foreach (var stream in movie.GetMediaStreams())
+                {
+                    if (stream.Type != MediaStreamType.Audio)
+                    {
+                        continue;
+                    }
+
+                    var code = TrailerLanguages.ToIso1(stream.Language);
+                    if (code is null)
+                    {
+                        continue;
+                    }
+
+                    known = true;
+                    if (allowed.Contains(code))
+                    {
+                        return true;
+                    }
+                }
+
+                // No usable audio-language tag at all -> treat as unknown and include it.
+                return !known;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Trailer Preroll could not read audio language for '{Movie}'; including it.", movie.Name);
+                return true;
+            }
+        }
+
+        /// <summary>
         /// Rotates the cached trailer set if the rotation epoch changed (or when forced).
         /// </summary>
         /// <param name="force">Force a rebuild of the pool selection regardless of epoch.</param>
@@ -755,6 +823,7 @@ namespace Jellyfin.Plugin.TrailerPreroll.Services
                 IsVirtualItem = false
             });
 
+            var allowedLangs = AllowedLanguages(config);
             var byKey = new Dictionary<string, PrerollItem>(StringComparer.Ordinal);
             var seenTitles = new HashSet<string>(StringComparer.Ordinal);
             foreach (var movie in movies)
@@ -763,6 +832,11 @@ namespace Jellyfin.Plugin.TrailerPreroll.Services
                 if (seenTitles.Contains(title))
                 {
                     continue; // same film already contributed a trailer (duplicate movie in library)
+                }
+
+                if (!IsLibraryLanguageAllowed(movie, allowedLangs))
+                {
+                    continue; // foreign-language film excluded by the language filter
                 }
 
                 var trailers = movie.RemoteTrailers;
@@ -927,6 +1001,7 @@ namespace Jellyfin.Plugin.TrailerPreroll.Services
                 IsVirtualItem = false
             });
 
+            var allowedLangs = AllowedLanguages(config);
             var byKey = new Dictionary<string, PrerollItem>(StringComparer.Ordinal);
             var seenTitles = new HashSet<string>(StringComparer.Ordinal);
             foreach (var movie in movies)
@@ -935,6 +1010,11 @@ namespace Jellyfin.Plugin.TrailerPreroll.Services
                 if (seenTitles.Contains(title))
                 {
                     continue; // same film already contributed a trailer (duplicate movie in library)
+                }
+
+                if (!IsLibraryLanguageAllowed(movie, allowedLangs))
+                {
+                    continue; // foreign-language film excluded by the language filter
                 }
 
                 var trailers = movie.RemoteTrailers;
@@ -987,6 +1067,7 @@ namespace Jellyfin.Plugin.TrailerPreroll.Services
             }
 
             var existingTmdbIds = GetLibraryTmdbIds();
+            var allowedLangs = AllowedLanguages(config);
             var (from, to) = GetWindow(config.UpcomingWindow);
             var cap = config.UpcomingPoolSize <= 0 ? 12 : config.UpcomingPoolSize;
 
@@ -1015,6 +1096,15 @@ namespace Jellyfin.Plugin.TrailerPreroll.Services
                         if (release < from || (to.HasValue && release > to.Value) || existingTmdbIds.Contains(movie.Id))
                         {
                             continue;
+                        }
+
+                        if (allowedLangs.Count > 0)
+                        {
+                            var lang = TrailerLanguages.ToIso1(movie.OriginalLanguage);
+                            if (lang is null || !allowedLangs.Contains(lang))
+                            {
+                                continue; // foreign-language upcoming film excluded by the language filter
+                            }
                         }
 
                         var key = await GetTmdbTrailerKeyAsync(client, movie.Id, cancellationToken).ConfigureAwait(false);

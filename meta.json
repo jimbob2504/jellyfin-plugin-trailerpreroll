@@ -1,14 +1,14 @@
 {
   "category": "General",
-  "changelog": "One-click yt-dlp/deno installer; de-duplicate trailers by title; auto-apply posters (library films and upcoming via TMDB); trailer play-count viewer.",
+  "changelog": "Scheduled task (Dashboard > Scheduled Tasks) to control when trailers cache, daily by default; language filter to skip foreign-language films; removed the always-on hourly background run.",
   "description": "Plays a cinema-style pre-show of trailers (from your own library and upcoming releases) before movies and TV episodes. Trailers are fetched with yt-dlp into a small, rotating local cache and served from two auto-created libraries.",
   "guid": "b7e9f2a1-4c3d-4e5f-9a8b-6c7d8e9f0a1b",
   "name": "Trailer Preroll",
   "overview": "Cinema-style trailer prerolls before movies and TV.",
   "owner": "jimbob2504",
   "targetAbi": "10.11.0.0",
-  "timestamp": "2026-08-25T00:00:00.0000000Z",
-  "version": "1.2.0.0",
+  "timestamp": "2026-08-31T00:00:00.0000000Z",
+  "version": "1.3.0.0",
   "status": "Active",
   "autoUpdate": false,
   "assemblies": []

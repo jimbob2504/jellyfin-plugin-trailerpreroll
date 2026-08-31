@@ -112,6 +112,17 @@
                 </div>
 
                 <div class="verticalSection">
+                    <h2>Languages</h2>
+                    <div class="fieldDescription" style="margin-bottom:0.75em;">
+                        Only download and show trailers for films in the languages you tick. A library
+                        film is matched on its audio track language; an upcoming film on its original
+                        language from TMDB. <strong>Leave everything unticked to allow all languages</strong>
+                        (no filtering). Films whose language can't be determined are always included.
+                    </div>
+                    <div id="LanguagesContainer" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:0.1em 1em;"></div>
+                </div>
+
+                <div class="verticalSection">
                     <h2>TMDB</h2>
                     <div class="inputContainer">
                         <label class="inputLabel inputLabelUnfocused" for="TmdbApiKey">TMDB API key (optional)</label>
@@ -316,6 +327,35 @@
     <script type="text/javascript">
         (function () {
             var pluginId = "b7e9f2a1-4c3d-4e5f-9a8b-6c7d8e9f0a1b";
+
+            // Kept in sync with TrailerLanguages.Offered on the server.
+            var OFFERED_LANGUAGES = [
+                ['en', 'English'], ['fr', 'French'], ['es', 'Spanish'], ['de', 'German'],
+                ['it', 'Italian'], ['pt', 'Portuguese'], ['nl', 'Dutch'], ['sv', 'Swedish'],
+                ['da', 'Danish'], ['no', 'Norwegian'], ['fi', 'Finnish'], ['pl', 'Polish'],
+                ['ru', 'Russian'], ['tr', 'Turkish'], ['ja', 'Japanese'], ['ko', 'Korean'],
+                ['zh', 'Chinese'], ['hi', 'Hindi'], ['ar', 'Arabic'], ['th', 'Thai']
+            ];
+
+            function renderLanguages(page, selected) {
+                var container = page.querySelector('#LanguagesContainer');
+                var chosen = {};
+                (selected || []).forEach(function (c) { chosen[String(c).toLowerCase()] = true; });
+                container.innerHTML = OFFERED_LANGUAGES.map(function (l) {
+                    var checked = chosen[l[0]] ? ' checked' : '';
+                    return '<label class="checkboxContainer">' +
+                        '<input is="emby-checkbox" type="checkbox" data-lang="' + l[0] + '"' + checked + ' />' +
+                        '<span>' + l[1] + '</span></label>';
+                }).join('');
+            }
+
+            function collectLanguages(page) {
+                var result = [];
+                page.querySelectorAll('#LanguagesContainer [data-lang]').forEach(function (cb) {
+                    if (cb.checked) { result.push(cb.getAttribute('data-lang')); }
+                });
+                return result;
+            }
 
             function escapeHtml(s) {
                 return String(s || '').replace(/[&<>"']/g, function (c) {
@@ -548,6 +588,7 @@
                     page.querySelector('#YtDlpPlayerClient').value = config.YtDlpPlayerClient || '';
                     page.querySelector('#YtDlpCookiesPath').value = config.YtDlpCookiesPath || '';
 
+                    renderLanguages(page, config.AllowedTrailerLanguages);
                     renderUserOverrides(page, config);
                     renderHealth(page);
 
@@ -594,6 +635,7 @@
                     config.YtDlpPlayerClient = page.querySelector('#YtDlpPlayerClient').value.trim();
                     config.YtDlpCookiesPath = page.querySelector('#YtDlpCookiesPath').value.trim();
 
+                    config.AllowedTrailerLanguages = collectLanguages(page);
                     config.UserOverrides = collectUserOverrides(page);
 
                     ApiClient.updatePluginConfiguration(pluginId, config).then(function (result) {

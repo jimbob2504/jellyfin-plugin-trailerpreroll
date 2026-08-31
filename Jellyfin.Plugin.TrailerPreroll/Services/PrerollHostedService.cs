@@ -10,16 +10,17 @@ using Microsoft.Extensions.Logging;
 namespace Jellyfin.Plugin.TrailerPreroll.Services
 {
     /// <summary>
-    /// Ensures the two trailer libraries exist and rotates the cached trailer set on a schedule,
-    /// on startup, and whenever the configuration changes.
+    /// Ensures the two trailer libraries exist, injects the web client script, and does a one-time
+    /// fill of the trailer pool on startup and whenever the configuration changes. Ongoing rotation
+    /// (the day-to-day "replace 1-2 trailers") is handled by the "Cache trailer prerolls" scheduled
+    /// task, not by this service - there is deliberately no recurring hourly run here.
     /// </summary>
     public class PrerollHostedService : IHostedService, IDisposable
     {
-        private static readonly TimeSpan CheckInterval = TimeSpan.FromHours(1);
         private static readonly TimeSpan StartupDelay = TimeSpan.FromSeconds(30);
 
-        // When a download budget was hit (more trailers still to fetch), tick again soon so the pool
-        // fills gradually rather than waiting a full hour.
+        // While a startup/config-change fill still has trailers to fetch (download budget hit), tick
+        // again soon to keep filling; once the pool is full the timer goes idle (no re-arm).
         private static readonly TimeSpan FillInterval = TimeSpan.FromMinutes(2);
 
         private readonly TrailerLibraryService _libraries;
@@ -145,10 +146,15 @@ namespace Jellyfin.Plugin.TrailerPreroll.Services
                 }
 
                 morePending = await _catalog.RotateIfNeededAsync(force, CancellationToken.None).ConfigureAwait(false);
-                await _catalog.RollReplaceAsync(maxPerRun: 3, CancellationToken.None).ConfigureAwait(false);
-                _catalog.RemoveDuplicateTrailers(CancellationToken.None);
-                await _catalog.CleanupItemNamesAsync(CancellationToken.None).ConfigureAwait(false);
-                await _catalog.EnsureUpcomingPostersAsync(CancellationToken.None).ConfigureAwait(false);
+
+                // Run the tidy-up (dedupe/names/posters) once the pool has finished filling, not on
+                // every 2-minute fill tick. Rolling play-based rotation is left to the scheduled task.
+                if (!morePending)
+                {
+                    _catalog.RemoveDuplicateTrailers(CancellationToken.None);
+                    await _catalog.CleanupItemNamesAsync(CancellationToken.None).ConfigureAwait(false);
+                    await _catalog.EnsureUpcomingPostersAsync(CancellationToken.None).ConfigureAwait(false);
+                }
             }
             catch (Exception ex)
             {
@@ -157,10 +163,14 @@ namespace Jellyfin.Plugin.TrailerPreroll.Services
             finally
             {
                 Interlocked.Exchange(ref _running, 0);
-                // Re-arm: soon if still filling the pool, otherwise the normal hourly check.
+                // Re-arm ONLY while still filling the pool; once full, go idle. Day-to-day rotation is
+                // the scheduled task's job, so there is no recurring hourly re-arm here.
                 try
                 {
-                    _timer?.Change(morePending ? FillInterval : CheckInterval, Timeout.InfiniteTimeSpan);
+                    if (morePending)
+                    {
+                        _timer?.Change(FillInterval, Timeout.InfiniteTimeSpan);
+                    }
                 }
                 catch (ObjectDisposedException)
                 {

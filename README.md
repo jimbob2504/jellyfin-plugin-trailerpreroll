@@ -18,6 +18,9 @@ Jellyfin's built-in **Cinema Mode / Intros** feature.
   so it doesn't interrupt a binge).
 - Two trailer pools: **your library** (from each film's own trailer metadata) and **upcoming
   releases** (via TMDB).
+- **Language filter** — pick which languages to show trailers for; foreign-language films (matched on
+  a library film's audio track, or an upcoming film's TMDB original language) are skipped. Leave it
+  empty to allow every language.
 - **Per-user overrides** — give specific users different settings (e.g. one user gets any trailer,
   another only unwatched-movie trailers).
 - **Watched / unwatched** filtering, randomisation, configurable counts and pool sizes.
@@ -26,19 +29,25 @@ Jellyfin's built-in **Cinema Mode / Intros** feature.
 - **Rolling rotation** — replace a trailer after it has played N times.
 - A **"Want to watch" button** on the web player: while a trailer plays, one click adds the film to
   your personal *Watch Later* playlist. Trailers saved this way are protected from deletion.
+- **One-click tool setup** — a button in settings downloads the correct yt-dlp and deno for your
+  server automatically; no manual binaries to place.
+- **Posters** applied automatically (the real film poster for library trailers, a TMDB poster for
+  upcoming ones), **duplicate trailers** pruned, and a **play-count viewer** in settings.
+- A **scheduled task** (*Dashboard → Scheduled Tasks → "Cache trailer prerolls"*) so you control
+  exactly when trailers are cached — defaults to a daily 3:30 AM run.
 - A **status panel** in the settings page showing download health (and warning when your YouTube
   cookies have gone stale).
 
 ## Requirements
 
-This plugin drives external tools. On the Jellyfin server machine you need:
+This plugin drives external tools. Most are handled for you:
 
 | Tool | Where | Notes |
 |------|-------|-------|
-| **yt-dlp** | `<data>/yt-dlp(.exe)` or on `PATH`, or set a path in settings | Downloads the trailers. Keep it updated (`yt-dlp -U`). |
-| **deno** | `<data>/deno(.exe)` | Needed for YouTube's signature challenge (yt-dlp uses it as a JS runtime). |
-| **cookies.txt** | path set in settings | Exported from a browser logged into YouTube. Greatly improves reliability against "Sign in to confirm you're not a bot". |
+| **yt-dlp** | auto-installed | Click **Download / update tools** in settings and the plugin fetches the correct build into `<data>`. (You can still point at your own `yt-dlp(.exe)` on `PATH` or via a path in settings.) Re-run the button any time to update it. |
+| **deno** | auto-installed | Fetched by the same button. Needed for YouTube's signature challenge (yt-dlp uses it as a JS runtime). |
 | **ffmpeg** | provided by Jellyfin | Used to mux video+audio. The plugin auto-detects Jellyfin's ffmpeg. |
+| **cookies.txt** | path set in settings | **The one manual piece.** Exported from a browser logged into YouTube. Greatly improves reliability against "Sign in to confirm you're not a bot". |
 | **TMDB API key** | set in settings | Only needed for the *upcoming releases* pool. |
 
 `<data>` is Jellyfin's data folder (the one containing `jellyfin.db`).
@@ -69,8 +78,13 @@ downloads start failing bot checks so you know it's time to re-export.
    (so you have `plugins/Trailer Preroll/Jellyfin.Plugin.TrailerPreroll.dll` and `meta.json`).
 3. Restart Jellyfin.
 
-Then place `yt-dlp`, `deno` and `cookies.txt` as described above, open the plugin settings, add your
-TMDB key and cookies path, and click **Download trailers now**.
+Then open the plugin settings and:
+
+1. Click **Download / update tools** to fetch yt-dlp and deno automatically.
+2. Add your **TMDB API key** (for the upcoming pool) and your **cookies.txt path**.
+3. (Optional) Pick your **languages**, and set when caching runs under
+   **Dashboard → Scheduled Tasks → "Cache trailer prerolls"** (defaults to 3:30 AM daily).
+4. Click **Download trailers now** for an immediate first fill (or just wait for the scheduled run).
 
 ## Notes & caveats
 
@@ -81,10 +95,11 @@ TMDB key and cookies path, and click **Download trailers now**.
   web client's `index.html`, re-applied automatically on each server start). It does not appear on
   clients that don't use the Jellyfin web UI (e.g. the MPV desktop app).
 - Trailers are real YouTube videos; some are region-locked or age-restricted and will be skipped.
-- **Linux / Docker**: the plugin resolves `yt-dlp`/`deno`/`ffmpeg` per-OS, so put the Linux builds of
-  `yt-dlp` and `deno` (no `.exe`) in the data folder. The "Want to watch" button needs to write to the
-  web client's `index.html`; if that folder is read-only in your container the button simply won't
-  load (the rest of the plugin still works). This path is not yet tested — feedback appreciated.
+- **Linux / Docker**: the plugin resolves `yt-dlp`/`deno`/`ffmpeg` per-OS, and the **Download / update
+  tools** button fetches the correct Linux builds automatically. The "Want to watch" button needs to
+  write to the web client's `index.html`; if that folder is read-only in your container the button
+  simply won't load (the rest of the plugin still works). This path is not yet tested — feedback
+  appreciated.
 
 ## Building from source
 
