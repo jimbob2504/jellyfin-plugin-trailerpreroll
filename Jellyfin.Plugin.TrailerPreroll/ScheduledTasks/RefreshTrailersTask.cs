@@ -87,8 +87,11 @@ namespace Jellyfin.Plugin.TrailerPreroll.ScheduledTasks
             progress.Report(80);
             await _catalog.RollReplaceAsync(maxPerRun: 3, cancellationToken).ConfigureAwait(false);
 
-            progress.Report(88);
+            progress.Report(86);
             _catalog.RemoveDuplicateTrailers(cancellationToken);
+
+            progress.Report(90);
+            _catalog.CleanupLibraryItems(cancellationToken);
 
             progress.Report(92);
             await _catalog.CleanupItemNamesAsync(cancellationToken).ConfigureAwait(false);

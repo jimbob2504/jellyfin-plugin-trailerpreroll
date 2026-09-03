@@ -152,6 +152,7 @@ namespace Jellyfin.Plugin.TrailerPreroll.Services
                 if (!morePending)
                 {
                     _catalog.RemoveDuplicateTrailers(CancellationToken.None);
+                    _catalog.CleanupLibraryItems(CancellationToken.None);
                     await _catalog.CleanupItemNamesAsync(CancellationToken.None).ConfigureAwait(false);
                     await _catalog.EnsureUpcomingPostersAsync(CancellationToken.None).ConfigureAwait(false);
                 }

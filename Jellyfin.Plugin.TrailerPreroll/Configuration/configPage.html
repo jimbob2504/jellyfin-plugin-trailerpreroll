@@ -7,26 +7,94 @@
         #TrailerPrerollConfigPage .tpTabs {
             display: flex;
             flex-wrap: wrap;
-            gap: 0.25em;
-            margin-bottom: 1.5em;
-            border-bottom: 1px solid rgba(128, 128, 128, 0.3);
+            gap: 0.6em;
+            margin: 0.5em 0 1.75em;
         }
         #TrailerPrerollConfigPage .tpTab {
-            background: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5em;
+            background: rgba(255, 255, 255, 0.07);
             border: none;
-            border-bottom: 2px solid transparent;
+            border-radius: 2em;
             color: inherit;
-            opacity: 0.6;
-            padding: 0.6em 1em;
-            font-size: 1.05em;
+            padding: 0.6em 1.25em;
+            font-size: 1em;
             font-weight: 600;
             cursor: pointer;
+            transition: background 0.15s ease, color 0.15s ease;
         }
-        #TrailerPrerollConfigPage .tpTab:hover { opacity: 0.9; }
+        #TrailerPrerollConfigPage .tpTab .tpTabIcon { font-size: 1.15em; line-height: 1; }
+        #TrailerPrerollConfigPage .tpTab:hover { background: rgba(255, 255, 255, 0.14); }
         #TrailerPrerollConfigPage .tpTab.tpTabActive {
-            opacity: 1;
-            border-bottom-color: #00a4dc;
+            background: #00a4dc;
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(0, 164, 220, 0.4);
         }
+        #TrailerPrerollConfigPage .tpDrop {
+            border: 1px solid rgba(128, 128, 128, 0.3);
+            border-radius: 6px;
+            padding: 0.6em 0.9em;
+            margin-bottom: 0.75em;
+        }
+        #TrailerPrerollConfigPage .tpDrop > summary {
+            cursor: pointer;
+            font-weight: 600;
+            list-style: none;
+        }
+        #TrailerPrerollConfigPage .tpDrop > summary::-webkit-details-marker { display: none; }
+        #TrailerPrerollConfigPage .tpDrop > summary::before { content: '\25B8'; margin-right: 0.5em; opacity: 0.7; }
+        #TrailerPrerollConfigPage .tpDrop[open] > summary::before { content: '\25BE'; }
+        #TrailerPrerollConfigPage .tpReplace {
+            padding: 0.25em 0.75em;
+            font-size: 0.85em;
+            border: none;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.12);
+            color: inherit;
+            cursor: pointer;
+        }
+        #TrailerPrerollConfigPage .tpReplace:hover { background: rgba(0, 164, 220, 0.85); color: #fff; }
+        #TrailerPrerollConfigPage .tpReplace:disabled { opacity: 0.6; cursor: default; }
+
+        #TrailerPrerollConfigPage .tpLangSelect { max-width: 100%; }
+        #TrailerPrerollConfigPage .tpLangHead {
+            list-style: none;
+            cursor: pointer;
+            position: relative;
+            background: rgba(255, 255, 255, 0.05);
+            border-bottom: 2px solid #00a4dc;
+            border-radius: 4px 4px 0 0;
+            padding: 0.75em 2.2em 0.75em 0.9em;
+            font-size: 1.05em;
+        }
+        #TrailerPrerollConfigPage .tpLangHead::-webkit-details-marker { display: none; }
+        #TrailerPrerollConfigPage .tpLangHead::after {
+            content: '\25BE';
+            position: absolute;
+            right: 0.9em;
+            top: 50%;
+            transform: translateY(-50%);
+            opacity: 0.8;
+        }
+        #TrailerPrerollConfigPage .tpLangSelect[open] .tpLangHead::after { content: '\25B4'; }
+        #TrailerPrerollConfigPage .tpLangList {
+            max-height: 320px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(128, 128, 128, 0.3);
+            border-top: none;
+        }
+        #TrailerPrerollConfigPage .tpLangList label {
+            display: flex;
+            align-items: center;
+            gap: 0.75em;
+            padding: 0.55em 0.9em;
+            margin: 0;
+            cursor: pointer;
+        }
+        #TrailerPrerollConfigPage .tpLangList label:hover { background: rgba(255, 255, 255, 0.08); }
+        #TrailerPrerollConfigPage .tpLangList input[type="checkbox"] { width: 1.1em; height: 1.1em; flex: none; }
     </style>
 </head>
 <body>
@@ -37,11 +105,11 @@
             <form id="TrailerPrerollConfigForm">
 
                 <div class="tpTabs">
-                    <button type="button" class="tpTab" data-tab="general">General</button>
-                    <button type="button" class="tpTab" data-tab="trailers">Trailers</button>
-                    <button type="button" class="tpTab" data-tab="cache">Cache &amp; Tools</button>
-                    <button type="button" class="tpTab" data-tab="users">Per-User</button>
-                    <button type="button" class="tpTab" data-tab="status">Status</button>
+                    <button type="button" class="tpTab" data-tab="general"><span class="tpTabIcon">&#9881;</span><span>General</span></button>
+                    <button type="button" class="tpTab" data-tab="trailers"><span class="tpTabIcon">&#127916;</span><span>Trailers</span></button>
+                    <button type="button" class="tpTab" data-tab="cache"><span class="tpTabIcon">&#128190;</span><span>Cache &amp; Tools</span></button>
+                    <button type="button" class="tpTab" data-tab="users"><span class="tpTabIcon">&#128100;</span><span>Per-User</span></button>
+                    <button type="button" class="tpTab" data-tab="status"><span class="tpTabIcon">&#128202;</span><span>Status</span></button>
                 </div>
 
                 <!-- ===================== GENERAL ===================== -->
@@ -88,7 +156,10 @@
                             language from TMDB. <strong>Leave everything unticked to allow all languages</strong>
                             (no filtering). Films whose language can't be determined are always included.
                         </div>
-                        <div id="LanguagesContainer" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:0.1em 1em;"></div>
+                        <details class="tpLangSelect">
+                            <summary class="tpLangHead"><span id="LanguagesSummary">All languages</span></summary>
+                            <div class="tpLangList" id="LanguagesContainer"></div>
+                        </details>
                     </div>
                 </div>
 
@@ -321,14 +392,16 @@
                     </div>
 
                     <div class="verticalSection">
-                        <h2>Trailer Play Counts</h2>
+                        <h2>Cached Trailers</h2>
                         <div class="fieldDescription" style="margin-bottom:0.5em;">
-                            How many times each cached trailer has played (this drives the "replace after N plays" rotation).
+                            The trailers currently cached and ready to play, with how many times each has
+                            played. Use <strong>Replace</strong> to remove one you don't want and download a
+                            different one in its place (runs in the background).
                         </div>
-                        <button is="emby-button" type="button" id="LoadPlayCountsBtn" class="raised">
-                            <span>Show play counts</span>
+                        <button is="emby-button" type="button" id="LoadTrailersBtn" class="raised">
+                            <span>Show cached trailers</span>
                         </button>
-                        <div id="PlayCountsPanel" style="margin-top:0.75em;"></div>
+                        <div id="TrailersPanel" style="margin-top:0.75em;"></div>
                     </div>
                 </div>
 
@@ -396,10 +469,31 @@
                 (selected || []).forEach(function (c) { chosen[String(c).toLowerCase()] = true; });
                 container.innerHTML = OFFERED_LANGUAGES.map(function (l) {
                     var checked = chosen[l[0]] ? ' checked' : '';
-                    return '<label class="checkboxContainer">' +
-                        '<input is="emby-checkbox" type="checkbox" data-lang="' + l[0] + '"' + checked + ' />' +
+                    return '<label><input type="checkbox" data-lang="' + l[0] + '"' + checked + ' />' +
                         '<span>' + l[1] + '</span></label>';
                 }).join('');
+                container.querySelectorAll('[data-lang]').forEach(function (cb) {
+                    cb.addEventListener('change', function () { updateLangSummary(page); });
+                });
+                updateLangSummary(page);
+            }
+
+            function updateLangSummary(page) {
+                var summary = page.querySelector('#LanguagesSummary');
+                if (!summary) { return; }
+                var names = [];
+                var byCode = {};
+                OFFERED_LANGUAGES.forEach(function (l) { byCode[l[0]] = l[1]; });
+                page.querySelectorAll('#LanguagesContainer [data-lang]').forEach(function (cb) {
+                    if (cb.checked) { names.push(byCode[cb.getAttribute('data-lang')]); }
+                });
+                if (names.length === 0) {
+                    summary.textContent = 'All languages (no filter)';
+                } else if (names.length <= 4) {
+                    summary.textContent = names.join(', ');
+                } else {
+                    summary.textContent = names.length + ' languages selected';
+                }
             }
 
             function collectLanguages(page) {
@@ -683,24 +777,55 @@
                 renderHealth(document.querySelector('#TrailerPrerollConfigPage'));
             });
 
-            document.querySelector('#LoadPlayCountsBtn').addEventListener('click', function () {
-                var panel = document.querySelector('#PlayCountsPanel');
+            function trailerTable(items) {
+                if (!items || !items.length) {
+                    return '<div class="fieldDescription" style="margin-top:0.5em;">None cached yet.</div>';
+                }
+                var rows = items.map(function (it) {
+                    return '<tr>' +
+                        '<td style="padding:3px 16px 3px 0;">' + escapeHtml(it.title) + '</td>' +
+                        '<td style="text-align:right;padding-right:16px;">' + it.plays + '</td>' +
+                        '<td><button type="button" class="tpReplace" data-key="' + escapeHtml(it.key) + '">&#8635; Replace</button></td>' +
+                        '</tr>';
+                }).join('');
+                return '<table style="border-collapse:collapse;line-height:1.9;width:100%;max-width:620px;margin-top:0.5em;">' +
+                    '<thead><tr><th style="text-align:left;">Trailer</th>' +
+                    '<th style="text-align:right;padding-right:16px;">Plays</th><th></th></tr></thead>' +
+                    '<tbody>' + rows + '</tbody></table>';
+            }
+
+            function loadTrailers(page) {
+                var panel = page.querySelector('#TrailersPanel');
                 panel.innerHTML = '<div class="fieldDescription">Loading&hellip;</div>';
-                ApiClient.getJSON(ApiClient.getUrl('TrailerPreroll/PlayCounts')).then(function (res) {
-                    if (!res.items || !res.items.length) {
-                        panel.innerHTML = '<div class="fieldDescription">No plays recorded yet.</div>';
-                        return;
-                    }
-                    var rows = res.items.map(function (it) {
-                        return '<tr><td style="padding:2px 16px 2px 0;">' + escapeHtml(it.title) +
-                            '</td><td style="text-align:right;">' + it.count + '</td></tr>';
-                    }).join('');
+                ApiClient.getJSON(ApiClient.getUrl('TrailerPreroll/Trailers')).then(function (res) {
+                    var lib = res.library || [];
+                    var up = res.upcoming || [];
                     panel.innerHTML =
-                        '<table style="border-collapse:collapse;line-height:1.6;">' +
-                        '<thead><tr><th style="text-align:left;padding-right:16px;">Trailer</th>' +
-                        '<th style="text-align:right;">Plays</th></tr></thead><tbody>' + rows + '</tbody></table>';
+                        '<details class="tpDrop" open><summary>Library trailers (' + lib.length + ')</summary>' +
+                        trailerTable(lib) + '</details>' +
+                        '<details class="tpDrop"><summary>Upcoming trailers (' + up.length + ')</summary>' +
+                        trailerTable(up) + '</details>';
                 }, function () {
-                    panel.innerHTML = '<div class="fieldDescription">Could not load play counts.</div>';
+                    panel.innerHTML = '<div class="fieldDescription">Could not load cached trailers.</div>';
+                });
+            }
+
+            document.querySelector('#LoadTrailersBtn').addEventListener('click', function () {
+                loadTrailers(document.querySelector('#TrailerPrerollConfigPage'));
+            });
+
+            // Per-trailer "Replace" (event delegation on the panel).
+            document.querySelector('#TrailersPanel').addEventListener('click', function (e) {
+                var btn = e.target.closest ? e.target.closest('.tpReplace') : null;
+                if (!btn) { return; }
+                var key = btn.getAttribute('data-key');
+                btn.disabled = true;
+                btn.textContent = 'Replacing…';
+                ApiClient.ajax({ type: 'POST', url: ApiClient.getUrl('TrailerPreroll/ReplaceTrailerByKey?key=' + encodeURIComponent(key)) }).then(function () {
+                    btn.textContent = '✓ Replacing in background';
+                }, function () {
+                    btn.textContent = 'Failed — retry';
+                    btn.disabled = false;
                 });
             });
 

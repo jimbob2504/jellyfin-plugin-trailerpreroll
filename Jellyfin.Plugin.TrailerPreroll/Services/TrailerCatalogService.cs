@@ -369,6 +369,75 @@ namespace Jellyfin.Plugin.TrailerPreroll.Services
             }
         }
 
+        /// <summary>
+        /// Removes stale library ITEMS from the two trailer libraries (files on disk are never touched):
+        /// "ghosts" whose backing file has been rotated away, and duplicate items that point to the same
+        /// file (Jellyfin can create a fresh item on each rescan instead of reusing the old one, which is
+        /// how the same trailer ends up listed several times). Returns the number of items removed.
+        /// </summary>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <returns>The number of duplicate/ghost items removed.</returns>
+        public int CleanupLibraryItems(CancellationToken cancellationToken)
+        {
+            var removed = 0;
+            try
+            {
+                foreach (var name in new[] { TrailerLibraryService.LibraryName, TrailerLibraryService.UpcomingName })
+                {
+                    var libId = _libraries.GetLibraryId(name);
+                    if (libId.Equals(Guid.Empty))
+                    {
+                        continue;
+                    }
+
+                    var items = _libraryManager.GetItemList(new InternalItemsQuery
+                    {
+                        ParentId = libId,
+                        Recursive = true
+                    });
+
+                    var seenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var item in items)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        if (item is not Video)
+                        {
+                            continue;
+                        }
+
+                        var path = item.Path;
+
+                        // Ghost: the trailer file was rotated away but the DB item lingered.
+                        if (string.IsNullOrEmpty(path) || !File.Exists(path))
+                        {
+                            _libraryManager.DeleteItem(item, new DeleteOptions { DeleteFileLocation = false });
+                            removed++;
+                            continue;
+                        }
+
+                        // Duplicate: an earlier item already claimed this exact file.
+                        if (!seenPaths.Add(path))
+                        {
+                            _libraryManager.DeleteItem(item, new DeleteOptions { DeleteFileLocation = false });
+                            removed++;
+                        }
+                    }
+                }
+
+                if (removed > 0)
+                {
+                    _logger.LogInformation("Trailer Preroll removed {Count} ghost/duplicate trailer item(s) from the libraries.", removed);
+                    _libraryManager.QueueLibraryScan();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Trailer Preroll library-item cleanup failed");
+            }
+
+            return removed;
+        }
+
         private static readonly Regex KeyInName = new(@"\s*\[[A-Za-z0-9_-]{11}\]\s*", RegexOptions.Compiled);
 
         /// <summary>

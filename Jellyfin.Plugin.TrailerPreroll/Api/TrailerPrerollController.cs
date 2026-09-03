@@ -91,6 +91,8 @@ namespace Jellyfin.Plugin.TrailerPreroll.Api
                     await _libraries.EnsureLibrariesAsync().ConfigureAwait(false);
                     await _catalog.RotateIfNeededAsync(force: true, CancellationToken.None).ConfigureAwait(false);
                     await _catalog.RollReplaceAsync(maxPerRun: 3, CancellationToken.None).ConfigureAwait(false);
+                    _catalog.RemoveDuplicateTrailers(CancellationToken.None);
+                    _catalog.CleanupLibraryItems(CancellationToken.None);
                     await _catalog.CleanupItemNamesAsync(CancellationToken.None).ConfigureAwait(false);
                 }
                 catch (Exception ex)
@@ -315,6 +317,96 @@ namespace Jellyfin.Plugin.TrailerPreroll.Api
             });
 
             return Ok(new { accepted = true, title });
+        }
+
+        /// <summary>
+        /// Lists the trailers currently cached on disk (so retired/removed ones never appear), split
+        /// into library and upcoming, each with its play count. Backs the settings "Cached Trailers"
+        /// dropdowns.
+        /// </summary>
+        /// <returns>Two lists of cached trailers.</returns>
+        [HttpGet("Trailers")]
+        [Authorize(Policy = "RequiresElevation")]
+        [Produces("application/json")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public ActionResult<object> Trailers()
+        {
+            var counts = _playTracker.GetAll();
+            return new
+            {
+                library = BuildCachedList(_libraries.LibraryDir, counts),
+                upcoming = BuildCachedList(_libraries.UpcomingDir, counts)
+            };
+        }
+
+        /// <summary>
+        /// Removes a specific cached trailer (by key) and downloads a different one in its place, in the
+        /// background. Backs the per-trailer "Replace" button in settings.
+        /// </summary>
+        /// <param name="key">The YouTube key of the trailer to replace.</param>
+        /// <returns>A small JSON result.</returns>
+        [HttpPost("ReplaceTrailerByKey")]
+        [Authorize(Policy = "RequiresElevation")]
+        [Produces("application/json")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public ActionResult ReplaceTrailerByKey([FromQuery] string key)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                return BadRequest();
+            }
+
+            _logger.LogInformation("Trailer Preroll change-trailer (settings) requested for {Key}.", key);
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await _catalog.ReplaceSpecificAsync(key, CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Trailer Preroll change-trailer (settings) failed for {Key}.", key);
+                }
+            });
+
+            return Ok(new { accepted = true });
+        }
+
+        private static List<object> BuildCachedList(string dir, IReadOnlyDictionary<string, (int Count, string? Title)> counts)
+        {
+            var rows = new List<(string Key, string Title, int Plays)>();
+            if (Directory.Exists(dir))
+            {
+                foreach (var f in Directory.GetFiles(dir, "*.mp4"))
+                {
+                    if (Path.GetFileName(f).StartsWith("dl_", StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+
+                    var key = PrerollItem.KeyFromFileName(f);
+                    if (string.IsNullOrEmpty(key))
+                    {
+                        continue;
+                    }
+
+                    var title = System.Text.RegularExpressions.Regex
+                        .Replace(Path.GetFileNameWithoutExtension(f), @"\s*\[[A-Za-z0-9_-]{11}\]\s*", " ")
+                        .Trim();
+                    if (string.IsNullOrEmpty(title))
+                    {
+                        title = counts.TryGetValue(key, out var ct) && !string.IsNullOrWhiteSpace(ct.Title) ? ct.Title! : key;
+                    }
+
+                    var plays = counts.TryGetValue(key, out var c) ? c.Count : 0;
+                    rows.Add((key, title, plays));
+                }
+            }
+
+            return rows
+                .OrderBy(r => r.Title, StringComparer.OrdinalIgnoreCase)
+                .Select(r => (object)new { key = r.Key, title = r.Title, plays = r.Plays })
+                .ToList();
         }
 
         /// <summary>
