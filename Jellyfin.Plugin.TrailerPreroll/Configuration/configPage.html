@@ -3,105 +3,114 @@
 <head>
     <meta charset="utf-8" />
     <title>Trailer Preroll</title>
-    <style>
-        #TrailerPrerollConfigPage .tpTabs {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.6em;
-            margin: 0.5em 0 1.75em;
-        }
-        #TrailerPrerollConfigPage .tpTab {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5em;
-            background: rgba(255, 255, 255, 0.07);
-            border: none;
-            border-radius: 2em;
-            color: inherit;
-            padding: 0.6em 1.25em;
-            font-size: 1em;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background 0.15s ease, color 0.15s ease;
-        }
-        #TrailerPrerollConfigPage .tpTab .tpTabIcon { font-size: 1.15em; line-height: 1; }
-        #TrailerPrerollConfigPage .tpTab:hover { background: rgba(255, 255, 255, 0.14); }
-        #TrailerPrerollConfigPage .tpTab.tpTabActive {
-            background: #00a4dc;
-            color: #fff;
-            box-shadow: 0 2px 8px rgba(0, 164, 220, 0.4);
-        }
-        #TrailerPrerollConfigPage .tpDrop {
-            border: 1px solid rgba(128, 128, 128, 0.3);
-            border-radius: 6px;
-            padding: 0.6em 0.9em;
-            margin-bottom: 0.75em;
-        }
-        #TrailerPrerollConfigPage .tpDrop > summary {
-            cursor: pointer;
-            font-weight: 600;
-            list-style: none;
-        }
-        #TrailerPrerollConfigPage .tpDrop > summary::-webkit-details-marker { display: none; }
-        #TrailerPrerollConfigPage .tpDrop > summary::before { content: '\25B8'; margin-right: 0.5em; opacity: 0.7; }
-        #TrailerPrerollConfigPage .tpDrop[open] > summary::before { content: '\25BE'; }
-        #TrailerPrerollConfigPage .tpReplace {
-            padding: 0.25em 0.75em;
-            font-size: 0.85em;
-            border: none;
-            border-radius: 5px;
-            background: rgba(255, 255, 255, 0.12);
-            color: inherit;
-            cursor: pointer;
-        }
-        #TrailerPrerollConfigPage .tpReplace:hover { background: rgba(0, 164, 220, 0.85); color: #fff; }
-        #TrailerPrerollConfigPage .tpReplace:disabled { opacity: 0.6; cursor: default; }
-
-        #TrailerPrerollConfigPage .tpLangSelect { max-width: 100%; }
-        #TrailerPrerollConfigPage .tpLangHead {
-            list-style: none;
-            cursor: pointer;
-            position: relative;
-            background: rgba(255, 255, 255, 0.05);
-            border-bottom: 2px solid #00a4dc;
-            border-radius: 4px 4px 0 0;
-            padding: 0.75em 2.2em 0.75em 0.9em;
-            font-size: 1.05em;
-        }
-        #TrailerPrerollConfigPage .tpLangHead::-webkit-details-marker { display: none; }
-        #TrailerPrerollConfigPage .tpLangHead::after {
-            content: '\25BE';
-            position: absolute;
-            right: 0.9em;
-            top: 50%;
-            transform: translateY(-50%);
-            opacity: 0.8;
-        }
-        #TrailerPrerollConfigPage .tpLangSelect[open] .tpLangHead::after { content: '\25B4'; }
-        #TrailerPrerollConfigPage .tpLangList {
-            max-height: 320px;
-            overflow-y: auto;
-            background: rgba(0, 0, 0, 0.25);
-            border: 1px solid rgba(128, 128, 128, 0.3);
-            border-top: none;
-        }
-        #TrailerPrerollConfigPage .tpLangList label {
-            display: flex;
-            align-items: center;
-            gap: 0.75em;
-            padding: 0.55em 0.9em;
-            margin: 0;
-            cursor: pointer;
-        }
-        #TrailerPrerollConfigPage .tpLangList label:hover { background: rgba(255, 255, 255, 0.08); }
-        #TrailerPrerollConfigPage .tpLangList input[type="checkbox"] { width: 1.1em; height: 1.1em; flex: none; }
-    </style>
 </head>
 <body>
 <div id="TrailerPrerollConfigPage" data-role="page" class="page type-interior pluginConfigurationPage"
      data-require="emby-input,emby-button,emby-select,emby-checkbox,emby-collapse">
     <div data-role="content">
         <div class="content-primary">
+            <style>
+                /* Styles live inside the page body because Jellyfin discards the document <head>. */
+                #TrailerPrerollConfigPage .tpTabs {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 0.6em;
+                    margin: 0.5em 0 1.75em;
+                }
+                #TrailerPrerollConfigPage .tpTab {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 0.5em;
+                    background: rgba(255, 255, 255, 0.07);
+                    border: none;
+                    border-radius: 2em;
+                    color: inherit;
+                    padding: 0.6em 1.25em;
+                    font-size: 1em;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: background 0.15s ease, color 0.15s ease;
+                }
+                #TrailerPrerollConfigPage .tpTab .tpTabIcon { font-size: 1.15em; line-height: 1; }
+                #TrailerPrerollConfigPage .tpTab:hover { background: rgba(255, 255, 255, 0.14); }
+                #TrailerPrerollConfigPage .tpTab.tpTabActive {
+                    background: #00a4dc;
+                    color: #fff;
+                    box-shadow: 0 2px 8px rgba(0, 164, 220, 0.4);
+                }
+
+                /* Card-style collapsible (cached-trailer lists). */
+                #TrailerPrerollConfigPage .tpDrop {
+                    border: 1px solid rgba(255, 255, 255, 0.13);
+                    border-radius: 10px;
+                    margin-bottom: 0.85em;
+                    overflow: hidden;
+                    background: rgba(255, 255, 255, 0.03);
+                }
+                #TrailerPrerollConfigPage .tpDrop > summary {
+                    cursor: pointer;
+                    font-weight: 600;
+                    list-style: none;
+                    padding: 0.85em 1.1em;
+                    background: rgba(255, 255, 255, 0.04);
+                }
+                #TrailerPrerollConfigPage .tpDrop > summary::-webkit-details-marker { display: none; }
+                #TrailerPrerollConfigPage .tpDrop > summary::before { content: '\25B8'; margin-right: 0.6em; opacity: 0.7; }
+                #TrailerPrerollConfigPage .tpDrop[open] > summary::before { content: '\25BE'; }
+                #TrailerPrerollConfigPage .tpDrop[open] > summary { border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
+                #TrailerPrerollConfigPage .tpDropBody { padding: 0.4em 1.1em 0.9em; }
+
+                #TrailerPrerollConfigPage .tpReplace {
+                    padding: 0.25em 0.75em;
+                    font-size: 0.85em;
+                    border: none;
+                    border-radius: 5px;
+                    background: rgba(255, 255, 255, 0.12);
+                    color: inherit;
+                    cursor: pointer;
+                }
+                #TrailerPrerollConfigPage .tpReplace:hover { background: rgba(0, 164, 220, 0.85); color: #fff; }
+                #TrailerPrerollConfigPage .tpReplace:disabled { opacity: 0.6; cursor: default; }
+
+                /* Native-style language dropdown, in a card. */
+                #TrailerPrerollConfigPage .tpLangSelect {
+                    border: 1px solid rgba(255, 255, 255, 0.13);
+                    border-radius: 10px;
+                    overflow: hidden;
+                    background: rgba(255, 255, 255, 0.03);
+                }
+                #TrailerPrerollConfigPage .tpLangHead {
+                    list-style: none;
+                    cursor: pointer;
+                    position: relative;
+                    background: rgba(255, 255, 255, 0.05);
+                    border-bottom: 2px solid #00a4dc;
+                    padding: 0.8em 2.2em 0.8em 1.1em;
+                    font-size: 1.05em;
+                }
+                #TrailerPrerollConfigPage .tpLangHead::-webkit-details-marker { display: none; }
+                #TrailerPrerollConfigPage .tpLangHead::after {
+                    content: '\25BE';
+                    position: absolute;
+                    right: 1em;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    opacity: 0.8;
+                }
+                #TrailerPrerollConfigPage .tpLangSelect[open] .tpLangHead::after { content: '\25B4'; }
+                #TrailerPrerollConfigPage .tpLangList { max-height: 300px; overflow-y: auto; }
+                #TrailerPrerollConfigPage .tpLangList label {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.75em;
+                    padding: 0.6em 1.1em;
+                    margin: 0;
+                    cursor: pointer;
+                }
+                #TrailerPrerollConfigPage .tpLangList label:hover { background: rgba(255, 255, 255, 0.08); }
+                #TrailerPrerollConfigPage .tpLangList input[type="checkbox"] { width: 1.1em; height: 1.1em; flex: none; }
+            </style>
+
             <form id="TrailerPrerollConfigForm">
 
                 <div class="tpTabs">
@@ -393,15 +402,13 @@
 
                     <div class="verticalSection">
                         <h2>Cached Trailers</h2>
-                        <div class="fieldDescription" style="margin-bottom:0.5em;">
+                        <div class="fieldDescription" style="margin-bottom:0.75em;">
                             The trailers currently cached and ready to play, with how many times each has
                             played. Use <strong>Replace</strong> to remove one you don't want and download a
                             different one in its place (runs in the background).
+                            <a href="#" id="ReloadTrailersLink" style="margin-left:0.35em;">Reload</a>
                         </div>
-                        <button is="emby-button" type="button" id="LoadTrailersBtn" class="raised">
-                            <span>Show cached trailers</span>
-                        </button>
-                        <div id="TrailersPanel" style="margin-top:0.75em;"></div>
+                        <div id="TrailersPanel"></div>
                     </div>
                 </div>
 
@@ -675,6 +682,39 @@
                 return result;
             }
 
+            function trailerTable(items) {
+                if (!items || !items.length) {
+                    return '<div class="fieldDescription">None cached yet.</div>';
+                }
+                var rows = items.map(function (it) {
+                    return '<tr>' +
+                        '<td style="padding:3px 16px 3px 0;">' + escapeHtml(it.title) + '</td>' +
+                        '<td style="text-align:right;padding-right:16px;">' + it.plays + '</td>' +
+                        '<td><button type="button" class="tpReplace" data-key="' + escapeHtml(it.key) + '">&#8635; Replace</button></td>' +
+                        '</tr>';
+                }).join('');
+                return '<table style="border-collapse:collapse;line-height:1.9;width:100%;">' +
+                    '<thead><tr><th style="text-align:left;">Trailer</th>' +
+                    '<th style="text-align:right;padding-right:16px;">Plays</th><th></th></tr></thead>' +
+                    '<tbody>' + rows + '</tbody></table>';
+            }
+
+            function loadTrailers(page) {
+                var panel = page.querySelector('#TrailersPanel');
+                panel.innerHTML = '<div class="fieldDescription">Loading&hellip;</div>';
+                ApiClient.getJSON(ApiClient.getUrl('TrailerPreroll/Trailers')).then(function (res) {
+                    var lib = res.library || [];
+                    var up = res.upcoming || [];
+                    panel.innerHTML =
+                        '<details class="tpDrop"><summary>Library trailers (' + lib.length + ')</summary>' +
+                        '<div class="tpDropBody">' + trailerTable(lib) + '</div></details>' +
+                        '<details class="tpDrop"><summary>Upcoming trailers (' + up.length + ')</summary>' +
+                        '<div class="tpDropBody">' + trailerTable(up) + '</div></details>';
+                }, function () {
+                    panel.innerHTML = '<div class="fieldDescription">Could not load cached trailers.</div>';
+                });
+            }
+
             function loadConfig(page) {
                 Dashboard.showLoadingMsg();
                 ApiClient.getPluginConfiguration(pluginId).then(function (config) {
@@ -713,6 +753,7 @@
                     renderLanguages(page, config.AllowedTrailerLanguages);
                     renderUserOverrides(page, config);
                     renderHealth(page);
+                    loadTrailers(page);
 
                     Dashboard.hideLoadingMsg();
                 });
@@ -777,40 +818,8 @@
                 renderHealth(document.querySelector('#TrailerPrerollConfigPage'));
             });
 
-            function trailerTable(items) {
-                if (!items || !items.length) {
-                    return '<div class="fieldDescription" style="margin-top:0.5em;">None cached yet.</div>';
-                }
-                var rows = items.map(function (it) {
-                    return '<tr>' +
-                        '<td style="padding:3px 16px 3px 0;">' + escapeHtml(it.title) + '</td>' +
-                        '<td style="text-align:right;padding-right:16px;">' + it.plays + '</td>' +
-                        '<td><button type="button" class="tpReplace" data-key="' + escapeHtml(it.key) + '">&#8635; Replace</button></td>' +
-                        '</tr>';
-                }).join('');
-                return '<table style="border-collapse:collapse;line-height:1.9;width:100%;max-width:620px;margin-top:0.5em;">' +
-                    '<thead><tr><th style="text-align:left;">Trailer</th>' +
-                    '<th style="text-align:right;padding-right:16px;">Plays</th><th></th></tr></thead>' +
-                    '<tbody>' + rows + '</tbody></table>';
-            }
-
-            function loadTrailers(page) {
-                var panel = page.querySelector('#TrailersPanel');
-                panel.innerHTML = '<div class="fieldDescription">Loading&hellip;</div>';
-                ApiClient.getJSON(ApiClient.getUrl('TrailerPreroll/Trailers')).then(function (res) {
-                    var lib = res.library || [];
-                    var up = res.upcoming || [];
-                    panel.innerHTML =
-                        '<details class="tpDrop" open><summary>Library trailers (' + lib.length + ')</summary>' +
-                        trailerTable(lib) + '</details>' +
-                        '<details class="tpDrop"><summary>Upcoming trailers (' + up.length + ')</summary>' +
-                        trailerTable(up) + '</details>';
-                }, function () {
-                    panel.innerHTML = '<div class="fieldDescription">Could not load cached trailers.</div>';
-                });
-            }
-
-            document.querySelector('#LoadTrailersBtn').addEventListener('click', function () {
+            document.querySelector('#ReloadTrailersLink').addEventListener('click', function (e) {
+                e.preventDefault();
                 loadTrailers(document.querySelector('#TrailerPrerollConfigPage'));
             });
 

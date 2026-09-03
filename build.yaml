@@ -1,7 +1,7 @@
 ---
 name: "Trailer Preroll"
 guid: "b7e9f2a1-4c3d-4e5f-9a8b-6c7d8e9f0a1b"
-version: "1.5.0.0"
+version: "1.5.0.1"
 targetAbi: "10.11.0.0"
 framework: "net9.0"
 owner: "jimbob2504"
@@ -13,4 +13,4 @@ description: >
 category: "General"
 artifacts:
   - "Jellyfin.Plugin.TrailerPreroll.dll"
-changelog: "Pill-style tabbed settings with a native-style language dropdown; cached-trailer manager (Library/Upcoming) with per-trailer Replace; removes ghost/duplicate library items left behind by rotation."
+changelog: "Fixes the settings page styling that didn't apply in 1.5.0.0 (pill tabs, language dropdown and cached-trailer cards now render); cached trailers load automatically as bordered cards."

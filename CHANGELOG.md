@@ -5,6 +5,14 @@ All notable changes to **Trailer Preroll** are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions use Jellyfin's four-part scheme (`major.minor.build.revision`).
 
+## [1.5.0.1] - 2026-09-03
+
+### Fixed
+- The settings page stylesheet is now applied. Jellyfin discards the document `<head>`, so the styles (which lived there) were being dropped — leaving the tabs, language dropdown, and cached-trailer lists unstyled. The styles now live inside the page body.
+
+### Changed
+- Cached trailers load automatically as bordered cards (Library and Upcoming), instead of behind a "Show cached trailers" button; a small "Reload" link refreshes the list.
+
 ## [1.5.0.0] - 2026-09-03
 
 ### Added
@@ -70,6 +78,7 @@ Versions use Jellyfin's four-part scheme (`major.minor.build.revision`).
 - Per-user overrides, watched/unwatched filtering, randomisation, configurable counts, pool sizes, rotation interval, quality cap, and optional YouTube cookies support.
 - "Want to watch" button on the web player that adds the film to a personal Watch Later playlist; trailers saved this way are protected from deletion.
 
+[1.5.0.1]: https://github.com/jimbob2504/jellyfin-plugin-trailerpreroll/releases/tag/v1.5.0.1
 [1.5.0.0]: https://github.com/jimbob2504/jellyfin-plugin-trailerpreroll/releases/tag/v1.5.0.0
 [1.4.0.0]: https://github.com/jimbob2504/jellyfin-plugin-trailerpreroll/releases/tag/v1.4.0.0
 [1.3.0.0]: https://github.com/jimbob2504/jellyfin-plugin-trailerpreroll/releases/tag/v1.3.0.0
