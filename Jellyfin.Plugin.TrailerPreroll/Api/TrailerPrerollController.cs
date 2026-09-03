@@ -271,6 +271,53 @@ namespace Jellyfin.Plugin.TrailerPreroll.Api
         }
 
         /// <summary>
+        /// Removes the currently-playing trailer and downloads a different one in its place (the
+        /// "Change trailer" button). Runs the swap in the background so the client can skip at once.
+        /// </summary>
+        /// <param name="itemId">The playing trailer item's id.</param>
+        /// <returns>A small JSON result.</returns>
+        [HttpPost("ReplaceTrailer")]
+        [Authorize]
+        [Produces("application/json")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public ActionResult ReplaceTrailer([FromQuery] Guid itemId)
+        {
+            if (itemId.Equals(Guid.Empty))
+            {
+                return BadRequest();
+            }
+
+            var item = _libraryManager.GetItemById(itemId);
+            if (item is null)
+            {
+                return NotFound();
+            }
+
+            var key = PrerollItem.KeyFromFileName(item.Path);
+            if (string.IsNullOrEmpty(key))
+            {
+                return NotFound();
+            }
+
+            var title = item.Name;
+            _logger.LogInformation("Trailer Preroll change-trailer requested for '{Title}' ({Key}).", title, key);
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await _catalog.ReplaceSpecificAsync(key, CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Trailer Preroll change-trailer background task failed for {Key}.", key);
+                }
+            });
+
+            return Ok(new { accepted = true, title });
+        }
+
+        /// <summary>
         /// Returns how many times each cached trailer has played, most-played first, for the settings page.
         /// </summary>
         /// <returns>A list of play-count rows.</returns>
@@ -281,13 +328,18 @@ namespace Jellyfin.Plugin.TrailerPreroll.Api
         public ActionResult<object> PlayCounts()
         {
             var counts = _playTracker.GetAll();
-            var titles = BuildKeyTitleMap();
+            var fileTitles = BuildKeyTitleMap();
 
             var items = counts
-                .Select(kv => new
+                .Select(kv =>
                 {
-                    count = kv.Value,
-                    title = titles.TryGetValue(kv.Key, out var t) ? t : kv.Key
+                    // Prefer the title stored with the play; fall back to the on-disk file name; and if
+                    // the trailer has since been rotated off disk with no stored title, say so plainly
+                    // instead of showing the raw YouTube id.
+                    var title = !string.IsNullOrWhiteSpace(kv.Value.Title)
+                        ? kv.Value.Title!
+                        : fileTitles.TryGetValue(kv.Key, out var t) ? t : "(removed trailer)";
+                    return new { count = kv.Value.Count, title };
                 })
                 .OrderByDescending(r => r.count)
                 .ThenBy(r => r.title, StringComparer.OrdinalIgnoreCase)

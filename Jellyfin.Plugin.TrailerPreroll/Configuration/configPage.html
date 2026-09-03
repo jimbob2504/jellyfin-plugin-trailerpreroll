@@ -3,6 +3,31 @@
 <head>
     <meta charset="utf-8" />
     <title>Trailer Preroll</title>
+    <style>
+        #TrailerPrerollConfigPage .tpTabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.25em;
+            margin-bottom: 1.5em;
+            border-bottom: 1px solid rgba(128, 128, 128, 0.3);
+        }
+        #TrailerPrerollConfigPage .tpTab {
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            color: inherit;
+            opacity: 0.6;
+            padding: 0.6em 1em;
+            font-size: 1.05em;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        #TrailerPrerollConfigPage .tpTab:hover { opacity: 0.9; }
+        #TrailerPrerollConfigPage .tpTab.tpTabActive {
+            opacity: 1;
+            border-bottom-color: #00a4dc;
+        }
+    </style>
 </head>
 <body>
 <div id="TrailerPrerollConfigPage" data-role="page" class="page type-interior pluginConfigurationPage"
@@ -11,308 +36,300 @@
         <div class="content-primary">
             <form id="TrailerPrerollConfigForm">
 
-                <div class="verticalSection">
-                    <h2>Status</h2>
-                    <div id="HealthPanel" style="padding:0.75em 1em;border-radius:6px;background:rgba(128,128,128,0.12);line-height:1.6;">
-                        <div class="fieldDescription">Loading status&hellip;</div>
+                <div class="tpTabs">
+                    <button type="button" class="tpTab" data-tab="general">General</button>
+                    <button type="button" class="tpTab" data-tab="trailers">Trailers</button>
+                    <button type="button" class="tpTab" data-tab="cache">Cache &amp; Tools</button>
+                    <button type="button" class="tpTab" data-tab="users">Per-User</button>
+                    <button type="button" class="tpTab" data-tab="status">Status</button>
+                </div>
+
+                <!-- ===================== GENERAL ===================== -->
+                <div class="tpPanel" data-panel="general">
+                    <div class="verticalSection">
+                        <h2>Media Types</h2>
+                        <label class="checkboxContainer">
+                            <input is="emby-checkbox" type="checkbox" id="EnableForMovies" />
+                            <span>Play trailers before Movies</span>
+                        </label>
+                        <label class="checkboxContainer">
+                            <input is="emby-checkbox" type="checkbox" id="EnableForTvShows" />
+                            <span>Play trailers before TV Shows</span>
+                        </label>
+                        <div class="selectContainer">
+                            <label class="selectLabel" for="EpisodeMode">TV episode behaviour</label>
+                            <select is="emby-select" id="EpisodeMode">
+                                <option value="FirstEpisodeOfSession">Only before the 1st episode watched in a session</option>
+                                <option value="EveryEpisode">Before every episode</option>
+                            </select>
+                            <div class="fieldDescription">
+                                "First episode only" avoids interrupting binge autoplay between episodes.
+                            </div>
+                        </div>
                     </div>
-                    <div style="margin-top:0.5em;">
-                        <button is="emby-button" type="button" id="RefreshStatusBtn" class="raised">
-                            <span>Refresh status</span>
+
+                    <div class="verticalSection">
+                        <h2>Playback</h2>
+                        <label class="checkboxContainer">
+                            <input is="emby-checkbox" type="checkbox" id="AllowSkip" />
+                            <span>Allow skipping trailers during playback</span>
+                        </label>
+                        <label class="checkboxContainer">
+                            <input is="emby-checkbox" type="checkbox" id="Randomize" />
+                            <span>Randomize trailer selection on each play</span>
+                        </label>
+                    </div>
+
+                    <div class="verticalSection">
+                        <h2>Languages</h2>
+                        <div class="fieldDescription" style="margin-bottom:0.75em;">
+                            Only download and show trailers for films in the languages you tick. A library
+                            film is matched on its audio track language; an upcoming film on its original
+                            language from TMDB. <strong>Leave everything unticked to allow all languages</strong>
+                            (no filtering). Films whose language can't be determined are always included.
+                        </div>
+                        <div id="LanguagesContainer" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:0.1em 1em;"></div>
+                    </div>
+                </div>
+
+                <!-- ===================== TRAILERS ===================== -->
+                <div class="tpPanel" data-panel="trailers">
+                    <div class="verticalSection">
+                        <h2>Library Trailers</h2>
+                        <div class="fieldDescription" style="margin-bottom:0.75em;">
+                            Trailers for films already in your library, read from each movie's own trailer
+                            metadata (YouTube links). No TMDB API key needed for this section.
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="LibraryTrailerCount">Number of library trailers (0&ndash;10)</label>
+                            <input is="emby-input" type="number" id="LibraryTrailerCount" min="0" max="10" step="1" />
+                            <div class="fieldDescription">Set to 0 to turn library trailers off.</div>
+                        </div>
+                        <div class="selectContainer">
+                            <label class="selectLabel" for="LibraryFilter">Filter</label>
+                            <select is="emby-select" id="LibraryFilter">
+                                <option value="WatchedAndUnwatched">Watched &amp; Unwatched</option>
+                                <option value="UnwatchedOnly">Unwatched Only</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="verticalSection">
+                        <h2>Upcoming Movie Trailers</h2>
+                        <div class="fieldDescription" style="margin-bottom:0.75em;">
+                            Upcoming releases discovered live from TMDB (movies not already in your library).
+                            Requires a TMDB API key below. Set the count to 0 to turn this off.
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="UpcomingTrailerCount">Number of upcoming trailers (0&ndash;10)</label>
+                            <input is="emby-input" type="number" id="UpcomingTrailerCount" min="0" max="10" step="1" />
+                        </div>
+                        <div class="selectContainer">
+                            <label class="selectLabel" for="UpcomingWindow">Look ahead</label>
+                            <select is="emby-select" id="UpcomingWindow">
+                                <option value="TwoWeeks">2 weeks</option>
+                                <option value="OneMonth">1 month</option>
+                                <option value="TwoMonths">2 months</option>
+                                <option value="ThreeMonths">3 months</option>
+                                <option value="NoLimit">No limit</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="verticalSection">
+                        <h2>TMDB</h2>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="TmdbApiKey">TMDB API key (optional)</label>
+                            <input is="emby-input" type="text" id="TmdbApiKey" autocomplete="off" />
+                            <div class="fieldDescription">
+                                Needed for the upcoming-releases pool. If blank, only YouTube library trailers are used.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="verticalSection">
+                        <h2>Intro Bumper</h2>
+                        <label class="checkboxContainer">
+                            <input is="emby-checkbox" type="checkbox" id="EnableIntroVideo" />
+                            <span>Play a short intro clip before the upcoming-movies block</span>
+                        </label>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="IntroVideoUrl">Intro video YouTube URL</label>
+                            <input is="emby-input" type="text" id="IntroVideoUrl" autocomplete="off"
+                                   placeholder="https://www.youtube.com/watch?v=..." />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===================== CACHE & TOOLS ===================== -->
+                <div class="tpPanel" data-panel="cache">
+                    <div class="verticalSection">
+                        <h2>Rotation</h2>
+                        <div class="selectContainer">
+                            <label class="selectLabel" for="RotationInterval">Change cached trailers</label>
+                            <select is="emby-select" id="RotationInterval">
+                                <option value="SixHours">Every 6 hours</option>
+                                <option value="Daily">Once a day</option>
+                                <option value="Weekly">Once a week</option>
+                                <option value="Monthly">Once a month</option>
+                                <option value="Never">Never (keep the same set)</option>
+                            </select>
+                            <div class="fieldDescription">
+                                How often the plugin re-picks the cached set. Actual downloading runs on the
+                                <strong>"Cache trailer prerolls"</strong> scheduled task (Dashboard &rarr; Scheduled
+                                Tasks), where you can set the time it runs. The trailers live in two auto-created
+                                libraries ("Trailer Preroll (Library)" and "Trailer Preroll (Upcoming)").
+                            </div>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="RotateAfterPlays">Replace a trailer after N plays</label>
+                            <input is="emby-input" type="number" id="RotateAfterPlays" min="0" step="1" />
+                            <div class="fieldDescription">
+                                Once a trailer has played this many times it's retired and one fresh trailer is
+                                downloaded to replace it. 0 = off. Default 5.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="verticalSection">
+                        <h2>Pool &amp; Downloads</h2>
+                        <label class="checkboxContainer">
+                            <input is="emby-checkbox" type="checkbox" id="KeepAllLibraryTrailers" />
+                            <span>Keep a trailer for every library film</span>
+                        </label>
+                        <div class="fieldDescription" style="margin-bottom:1em;">
+                            Instead of a bounded rotating pool, gradually download and permanently keep a
+                            trailer for every film in your library. Great variety, but can use a lot of disk.
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="LibraryPoolSize">Library trailer pool size</label>
+                            <input is="emby-input" type="number" id="LibraryPoolSize" min="1" step="1" />
+                            <div class="fieldDescription">
+                                How many library-film trailers to keep cached for variety. Default 60.
+                                (Ignored if "keep a trailer for every film" is on.)
+                            </div>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="UpcomingPoolSize">Upcoming trailer pool size</label>
+                            <input is="emby-input" type="number" id="UpcomingPoolSize" min="1" step="1" />
+                            <div class="fieldDescription">How many upcoming trailers to keep cached. Default 12.</div>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="DownloadsPerCycle">Downloads per cycle</label>
+                            <input is="emby-input" type="number" id="DownloadsPerCycle" min="0" step="1" />
+                            <div class="fieldDescription">
+                                Max trailers to download each cycle, so the pool fills gradually (gentler on
+                                YouTube). 0 = no limit. Default 10.
+                            </div>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="CacheCapMb">Cache size cap (MB)</label>
+                            <input is="emby-input" type="number" id="CacheCapMb" min="100" step="100" />
+                            <div class="fieldDescription">
+                                Oldest trailers are deleted once the cache exceeds this size. Default 2048 (2 GB).
+                            </div>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="MaxTrailerHeight">Max trailer height (px)</label>
+                            <input is="emby-input" type="number" id="MaxTrailerHeight" min="240" step="1" />
+                            <div class="fieldDescription">Quality cap (e.g. 720 or 1080). Lower = smaller files. Default 720.</div>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="SessionGapMinutes">Session gap (minutes)</label>
+                            <input is="emby-input" type="number" id="SessionGapMinutes" min="1" step="1" />
+                            <div class="fieldDescription">
+                                A gap longer than this between episodes starts a new "session" for the
+                                first-episode-only TV mode. Default 180.
+                            </div>
+                        </div>
+                        <div style="margin-top:1em;">
+                            <button is="emby-button" type="button" id="DownloadNowBtn" class="raised block">
+                                <span>Download trailers now</span>
+                            </button>
+                            <div class="fieldDescription">
+                                Manually fetch/refresh the trailer set now (runs in the background; may take a few minutes).
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="verticalSection">
+                        <h2>yt-dlp / cookies</h2>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="YtDlpPath">yt-dlp path (optional)</label>
+                            <input is="emby-input" type="text" id="YtDlpPath" autocomplete="off"
+                                   placeholder="leave blank to auto-detect" />
+                            <div class="fieldDescription">
+                                Leave blank to use the auto-installed yt-dlp (or one on the system PATH).
+                            </div>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="YtDlpPlayerClient">YouTube player client</label>
+                            <input is="emby-input" type="text" id="YtDlpPlayerClient" autocomplete="off"
+                                   placeholder="android" />
+                            <div class="fieldDescription">
+                                yt-dlp extraction client(s) to get past YouTube bot checks (e.g. "android" or
+                                "android,ios"). Blank = yt-dlp default.
+                            </div>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="YtDlpCookiesPath">YouTube cookies file (optional)</label>
+                            <input is="emby-input" type="text" id="YtDlpCookiesPath" autocomplete="off"
+                                   placeholder="e.g. F:\\path\\to\\cookies.txt" />
+                            <div class="fieldDescription">
+                                Path to a cookies.txt exported from a browser logged into YouTube. Strongly
+                                improves reliability when YouTube blocks downloads.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===================== PER-USER ===================== -->
+                <div class="tpPanel" data-panel="users">
+                    <div class="verticalSection">
+                        <h2>Per-User Overrides</h2>
+                        <div class="fieldDescription" style="margin-bottom:1em;">
+                            By default every user gets the global settings. Enable an override for a specific
+                            user to give them different trailer selection (for example, one user gets any
+                            trailer while another only gets unwatched-movie trailers). Download, cache and pool
+                            settings are always shared &mdash; overrides only change <em>which</em> and
+                            <em>how many</em> trailers each user sees.
+                        </div>
+                        <div id="UserOverridesContainer"></div>
+                    </div>
+                </div>
+
+                <!-- ===================== STATUS ===================== -->
+                <div class="tpPanel" data-panel="status">
+                    <div class="verticalSection">
+                        <h2>Status</h2>
+                        <div id="HealthPanel" style="padding:0.75em 1em;border-radius:6px;background:rgba(128,128,128,0.12);line-height:1.6;">
+                            <div class="fieldDescription">Loading status&hellip;</div>
+                        </div>
+                        <div style="margin-top:0.5em;">
+                            <button is="emby-button" type="button" id="RefreshStatusBtn" class="raised">
+                                <span>Refresh status</span>
+                            </button>
+                            <button is="emby-button" type="button" id="InstallToolsBtn" class="raised">
+                                <span>Download / update tools</span>
+                            </button>
+                        </div>
+                        <div class="fieldDescription">
+                            "Download / update tools" fetches the correct yt-dlp and deno for this server
+                            automatically (into the data folder). You still need to supply your own
+                            cookies.txt. Re-run it any time to update yt-dlp.
+                        </div>
+                    </div>
+
+                    <div class="verticalSection">
+                        <h2>Trailer Play Counts</h2>
+                        <div class="fieldDescription" style="margin-bottom:0.5em;">
+                            How many times each cached trailer has played (this drives the "replace after N plays" rotation).
+                        </div>
+                        <button is="emby-button" type="button" id="LoadPlayCountsBtn" class="raised">
+                            <span>Show play counts</span>
                         </button>
-                        <button is="emby-button" type="button" id="InstallToolsBtn" class="raised">
-                            <span>Download / update tools</span>
-                        </button>
+                        <div id="PlayCountsPanel" style="margin-top:0.75em;"></div>
                     </div>
-                    <div class="fieldDescription">
-                        "Download / update tools" fetches the correct yt-dlp and deno for this server
-                        automatically (into the data folder). You still need to supply your own
-                        cookies.txt. Re-run it any time to update yt-dlp.
-                    </div>
-                </div>
-
-                <div class="verticalSection">
-                    <h2>Media Types</h2>
-                    <label class="checkboxContainer">
-                        <input is="emby-checkbox" type="checkbox" id="EnableForMovies" />
-                        <span>Play trailers before Movies</span>
-                    </label>
-                    <label class="checkboxContainer">
-                        <input is="emby-checkbox" type="checkbox" id="EnableForTvShows" />
-                        <span>Play trailers before TV Shows</span>
-                    </label>
-
-                    <div class="selectContainer">
-                        <label class="selectLabel" for="EpisodeMode">TV episode behaviour</label>
-                        <select is="emby-select" id="EpisodeMode">
-                            <option value="FirstEpisodeOfSession">Only before the 1st episode watched in a session</option>
-                            <option value="EveryEpisode">Before every episode</option>
-                        </select>
-                        <div class="fieldDescription">
-                            "First episode only" avoids interrupting binge autoplay between episodes.
-                        </div>
-                    </div>
-                </div>
-
-                <div class="verticalSection">
-                    <h2>Library Trailers</h2>
-                    <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="LibraryTrailerCount">Number of library trailers (0&ndash;10)</label>
-                        <input is="emby-input" type="number" id="LibraryTrailerCount" min="0" max="10" step="1" />
-                    </div>
-                    <div class="selectContainer">
-                        <label class="selectLabel" for="LibraryFilter">Filter</label>
-                        <select is="emby-select" id="LibraryFilter">
-                            <option value="WatchedAndUnwatched">Watched &amp; Unwatched</option>
-                            <option value="UnwatchedOnly">Unwatched Only</option>
-                        </select>
-                    </div>
-                    <label class="checkboxContainer">
-                        <input is="emby-checkbox" type="checkbox" id="LibrarySourceTmdb" />
-                        <span>Source: TMDB</span>
-                    </label>
-                    <label class="checkboxContainer">
-                        <input is="emby-checkbox" type="checkbox" id="LibrarySourceYoutube" />
-                        <span>Source: YouTube</span>
-                    </label>
-                    <div class="fieldDescription">
-                        Library trailers are read from each movie's existing trailer metadata (YouTube links),
-                        so no TMDB API key is required for this section.
-                    </div>
-                </div>
-
-                <div class="verticalSection">
-                    <h2>Upcoming Movie Trailers</h2>
-                    <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="UpcomingTrailerCount">Number of upcoming trailers (0&ndash;10)</label>
-                        <input is="emby-input" type="number" id="UpcomingTrailerCount" min="0" max="10" step="1" />
-                    </div>
-                    <div class="selectContainer">
-                        <label class="selectLabel" for="UpcomingWindow">Look ahead</label>
-                        <select is="emby-select" id="UpcomingWindow">
-                            <option value="TwoWeeks">2 weeks</option>
-                            <option value="OneMonth">1 month</option>
-                            <option value="TwoMonths">2 months</option>
-                            <option value="ThreeMonths">3 months</option>
-                            <option value="NoLimit">No limit</option>
-                        </select>
-                    </div>
-                    <label class="checkboxContainer">
-                        <input is="emby-checkbox" type="checkbox" id="UpcomingSourceTmdb" />
-                        <span>Source: TMDB</span>
-                    </label>
-                    <label class="checkboxContainer">
-                        <input is="emby-checkbox" type="checkbox" id="UpcomingSourceYoutube" />
-                        <span>Source: YouTube</span>
-                    </label>
-                    <div class="fieldDescription">
-                        Upcoming releases are discovered live from TMDB and are movies not already in your library.
-                        A TMDB API key is required for this section.
-                    </div>
-                </div>
-
-                <div class="verticalSection">
-                    <h2>Languages</h2>
-                    <div class="fieldDescription" style="margin-bottom:0.75em;">
-                        Only download and show trailers for films in the languages you tick. A library
-                        film is matched on its audio track language; an upcoming film on its original
-                        language from TMDB. <strong>Leave everything unticked to allow all languages</strong>
-                        (no filtering). Films whose language can't be determined are always included.
-                    </div>
-                    <div id="LanguagesContainer" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:0.1em 1em;"></div>
-                </div>
-
-                <div class="verticalSection">
-                    <h2>TMDB</h2>
-                    <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="TmdbApiKey">TMDB API key (optional)</label>
-                        <input is="emby-input" type="text" id="TmdbApiKey" autocomplete="off" />
-                        <div class="fieldDescription">
-                            If blank, TMDB-sourced trailers are skipped and only YouTube library trailers are used.
-                        </div>
-                    </div>
-                </div>
-
-                <div class="verticalSection">
-                    <h2>Intro Bumper</h2>
-                    <label class="checkboxContainer">
-                        <input is="emby-checkbox" type="checkbox" id="EnableIntroVideo" />
-                        <span>Play a short intro clip before the upcoming-movies block</span>
-                    </label>
-                    <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="IntroVideoUrl">Intro video YouTube URL</label>
-                        <input is="emby-input" type="text" id="IntroVideoUrl" autocomplete="off"
-                               placeholder="https://www.youtube.com/watch?v=..." />
-                    </div>
-                </div>
-
-                <div class="verticalSection">
-                    <h2>Playback</h2>
-                    <label class="checkboxContainer">
-                        <input is="emby-checkbox" type="checkbox" id="AllowSkip" />
-                        <span>Allow skipping trailers during playback</span>
-                    </label>
-                    <label class="checkboxContainer">
-                        <input is="emby-checkbox" type="checkbox" id="Randomize" />
-                        <span>Randomize trailer selection on each play</span>
-                    </label>
-                </div>
-
-                <div class="verticalSection">
-                    <h2>Cache</h2>
-                    <div class="selectContainer">
-                        <label class="selectLabel" for="RotationInterval">Change cached trailers</label>
-                        <select is="emby-select" id="RotationInterval">
-                            <option value="SixHours">Every 6 hours</option>
-                            <option value="Daily">Once a day</option>
-                            <option value="Weekly">Once a week</option>
-                            <option value="Monthly">Once a month</option>
-                            <option value="Never">Never (keep the same set)</option>
-                        </select>
-                        <div class="fieldDescription">
-                            How often the plugin swaps out the cached trailers for a fresh random set.
-                            The trailers live in two auto-created libraries ("Trailer Preroll (Library)"
-                            and "Trailer Preroll (Upcoming)"). To hide them, use Dashboard &rarr; Users &rarr;
-                            your user &rarr; untick those libraries (do NOT disable the library, which removes the items).
-                        </div>
-                    </div>
-                    <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="RotateAfterPlays">Replace a trailer after N plays</label>
-                        <input is="emby-input" type="number" id="RotateAfterPlays" min="0" step="1" />
-                        <div class="fieldDescription">
-                            Rolling rotation: once a trailer has played this many times, it's retired and
-                            one fresh trailer is downloaded to replace it (a gentle trickle, easier on
-                            YouTube than big rotations). 0 = off. Default 5.
-                        </div>
-                    </div>
-                    <div style="margin-top:1em;">
-                        <button is="emby-button" type="button" id="DownloadNowBtn" class="raised block">
-                            <span>Download trailers now</span>
-                        </button>
-                        <div class="fieldDescription">
-                            Manually fetch/refresh the trailer set now (runs in the background; may take a few minutes).
-                        </div>
-                    </div>
-                    <div style="margin-top:1em;">
-                        <button is="emby-button" type="button" id="ConvertTypesBtn" class="raised block">
-                            <span>Mark cached trailers as "Trailer" type</span>
-                        </button>
-                        <div class="fieldDescription">
-                            Re-lists the already-downloaded trailers as proper "Trailer" items instead of
-                            generic home videos. This re-scans the two trailer libraries (it does NOT
-                            re-download anything &mdash; the files stay put) and runs in the background.
-                        </div>
-                    </div>
-                </div>
-
-                <div class="verticalSection">
-                    <h2>Advanced</h2>
-                    <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="SessionGapMinutes">Session gap (minutes)</label>
-                        <input is="emby-input" type="number" id="SessionGapMinutes" min="1" step="1" />
-                        <div class="fieldDescription">
-                            A gap longer than this between episodes starts a new "session" for the
-                            first-episode-only TV mode. Default 180.
-                        </div>
-                    </div>
-                    <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="LibraryPoolSize">Library trailer pool size</label>
-                        <input is="emby-input" type="number" id="LibraryPoolSize" min="1" step="1" />
-                        <div class="fieldDescription">
-                            How many library-film trailers to keep cached for variety. Larger = more
-                            variety and more disk. Default 60. (Ignored if "Keep a trailer for every film" is on.)
-                        </div>
-                    </div>
-                    <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="UpcomingPoolSize">Upcoming trailer pool size</label>
-                        <input is="emby-input" type="number" id="UpcomingPoolSize" min="1" step="1" />
-                        <div class="fieldDescription">
-                            How many upcoming trailers to keep cached. Default 12.
-                        </div>
-                    </div>
-                    <label class="checkboxContainer">
-                        <input is="emby-checkbox" type="checkbox" id="KeepAllLibraryTrailers" />
-                        <span>Keep a trailer for every library film</span>
-                    </label>
-                    <div class="fieldDescription" style="margin-bottom:1em;">
-                        Instead of a bounded rotating pool, gradually download and permanently keep a
-                        trailer for every film in your library. Great variety, but can use a lot of disk
-                        on big libraries.
-                    </div>
-                    <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="DownloadsPerCycle">Downloads per cycle</label>
-                        <input is="emby-input" type="number" id="DownloadsPerCycle" min="0" step="1" />
-                        <div class="fieldDescription">
-                            Max trailers to download each background cycle, so the pool fills gradually
-                            instead of all at once (gentler on YouTube). 0 = no limit. Default 10.
-                        </div>
-                    </div>
-                    <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="CacheCapMb">Cache size cap (MB)</label>
-                        <input is="emby-input" type="number" id="CacheCapMb" min="100" step="100" />
-                        <div class="fieldDescription">
-                            Trailers are streamed from a small local cache (yt-dlp + ffmpeg). Oldest are
-                            deleted once the cache exceeds this size. Default 2048 (2 GB).
-                        </div>
-                    </div>
-                    <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="MaxTrailerHeight">Max trailer height (px)</label>
-                        <input is="emby-input" type="number" id="MaxTrailerHeight" min="240" step="1" />
-                        <div class="fieldDescription">
-                            Quality cap for cached trailers (e.g. 720 or 1080). Lower = smaller files. Default 720.
-                        </div>
-                    </div>
-                    <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="YtDlpPath">yt-dlp path (optional)</label>
-                        <input is="emby-input" type="text" id="YtDlpPath" autocomplete="off"
-                               placeholder="leave blank to auto-detect" />
-                        <div class="fieldDescription">
-                            Leave blank to use yt-dlp(.exe) from the server data folder or system PATH.
-                        </div>
-                    </div>
-                    <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="YtDlpPlayerClient">YouTube player client</label>
-                        <input is="emby-input" type="text" id="YtDlpPlayerClient" autocomplete="off"
-                               placeholder="android" />
-                        <div class="fieldDescription">
-                            yt-dlp extraction client(s) used to get past YouTube bot checks (e.g. "android"
-                            or "android,ios"). Blank = yt-dlp default.
-                        </div>
-                    </div>
-                    <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="YtDlpCookiesPath">YouTube cookies file (optional)</label>
-                        <input is="emby-input" type="text" id="YtDlpCookiesPath" autocomplete="off"
-                               placeholder="e.g. F:\\path\\to\\cookies.txt" />
-                        <div class="fieldDescription">
-                            Path to a cookies.txt exported from a browser logged into YouTube. Strongly
-                            improves reliability when YouTube blocks downloads with "Sign in to confirm
-                            you're not a bot".
-                        </div>
-                    </div>
-                </div>
-
-                <div class="verticalSection">
-                    <h2>Per-User Overrides</h2>
-                    <div class="fieldDescription" style="margin-bottom:1em;">
-                        By default every user gets the global settings above. Enable an override for a
-                        specific user to give them different trailer selection settings (for example,
-                        one user gets any trailer while another only gets unwatched-movie trailers).
-                        Download, cache and pool settings are always shared &mdash; overrides only change
-                        <em>which</em> and <em>how many</em> of the already-downloaded trailers each user sees.
-                    </div>
-                    <div id="UserOverridesContainer"></div>
-                </div>
-
-                <div class="verticalSection">
-                    <h2>Trailer Play Counts</h2>
-                    <div class="fieldDescription" style="margin-bottom:0.5em;">
-                        How many times each cached trailer has played (this is what drives the
-                        "replace after N plays" rotation).
-                    </div>
-                    <button is="emby-button" type="button" id="LoadPlayCountsBtn" class="raised">
-                        <span>Show play counts</span>
-                    </button>
-                    <div id="PlayCountsPanel" style="margin-top:0.75em;"></div>
                 </div>
 
                 <div>
@@ -337,24 +354,21 @@
                 ['zh', 'Chinese'], ['hi', 'Hindi'], ['ar', 'Arabic'], ['th', 'Thai']
             ];
 
-            function renderLanguages(page, selected) {
-                var container = page.querySelector('#LanguagesContainer');
-                var chosen = {};
-                (selected || []).forEach(function (c) { chosen[String(c).toLowerCase()] = true; });
-                container.innerHTML = OFFERED_LANGUAGES.map(function (l) {
-                    var checked = chosen[l[0]] ? ' checked' : '';
-                    return '<label class="checkboxContainer">' +
-                        '<input is="emby-checkbox" type="checkbox" data-lang="' + l[0] + '"' + checked + ' />' +
-                        '<span>' + l[1] + '</span></label>';
-                }).join('');
-            }
-
-            function collectLanguages(page) {
-                var result = [];
-                page.querySelectorAll('#LanguagesContainer [data-lang]').forEach(function (cb) {
-                    if (cb.checked) { result.push(cb.getAttribute('data-lang')); }
+            function initTabs(page) {
+                var tabs = page.querySelectorAll('.tpTab');
+                var panels = page.querySelectorAll('.tpPanel');
+                function activate(name) {
+                    tabs.forEach(function (t) {
+                        t.classList.toggle('tpTabActive', t.getAttribute('data-tab') === name);
+                    });
+                    panels.forEach(function (p) {
+                        p.style.display = p.getAttribute('data-panel') === name ? '' : 'none';
+                    });
+                }
+                tabs.forEach(function (t) {
+                    t.addEventListener('click', function () { activate(t.getAttribute('data-tab')); });
                 });
-                return result;
+                activate('general');
             }
 
             function escapeHtml(s) {
@@ -374,6 +388,26 @@
                         : Math.round(mins / 1440) + ' d ago';
                     return d.toLocaleString() + ' (' + rel + ')';
                 } catch (e) { return String(iso); }
+            }
+
+            function renderLanguages(page, selected) {
+                var container = page.querySelector('#LanguagesContainer');
+                var chosen = {};
+                (selected || []).forEach(function (c) { chosen[String(c).toLowerCase()] = true; });
+                container.innerHTML = OFFERED_LANGUAGES.map(function (l) {
+                    var checked = chosen[l[0]] ? ' checked' : '';
+                    return '<label class="checkboxContainer">' +
+                        '<input is="emby-checkbox" type="checkbox" data-lang="' + l[0] + '"' + checked + ' />' +
+                        '<span>' + l[1] + '</span></label>';
+                }).join('');
+            }
+
+            function collectLanguages(page) {
+                var result = [];
+                page.querySelectorAll('#LanguagesContainer [data-lang]').forEach(function (cb) {
+                    if (cb.checked) { result.push(cb.getAttribute('data-lang')); }
+                });
+                return result;
             }
 
             function renderHealth(page) {
@@ -397,10 +431,9 @@
                     rows.push('<div><strong>Totals since restart:</strong> ' + h.totalSucceeded + ' ok, ' +
                         h.totalFailed + ' failed' + (h.totalAuthFailed > 0 ? ', ' + h.totalAuthFailed + ' bot/cookie' : '') + '</div>');
 
-                    // Cookies line.
                     var cookieLine;
                     if (!h.cookiesPath) {
-                        cookieLine = '<span style="color:#e0a030;">&#9888; No cookies file configured &mdash; gated trailers will fail. Set one under Advanced.</span>';
+                        cookieLine = '<span style="color:#e0a030;">&#9888; No cookies file configured &mdash; gated trailers will fail. Set one under Cache &amp; Tools.</span>';
                     } else if (!h.cookiesExists) {
                         cookieLine = '<span style="color:#e05050;">&#9888; Cookies file not found at the configured path.</span>';
                     } else {
@@ -411,7 +444,6 @@
                         rows.push('<div class="fieldDescription" style="margin-top:0.25em;">Last error: ' + escapeHtml(h.lastError) + '</div>');
                     }
 
-                    // Overall banner: red only on a real bot-block burst; otherwise healthy.
                     var banner;
                     if (h.cookieWarning) {
                         banner = '<div style="margin-bottom:0.5em;padding:0.4em 0.6em;border-radius:4px;background:rgba(224,80,80,0.2);color:#e05050;">' +
@@ -559,13 +591,9 @@
 
                     page.querySelector('#LibraryTrailerCount').value = config.LibraryTrailerCount;
                     page.querySelector('#LibraryFilter').value = config.LibraryFilter;
-                    page.querySelector('#LibrarySourceTmdb').checked = config.LibrarySourceTmdb;
-                    page.querySelector('#LibrarySourceYoutube').checked = config.LibrarySourceYoutube;
 
                     page.querySelector('#UpcomingTrailerCount').value = config.UpcomingTrailerCount;
                     page.querySelector('#UpcomingWindow').value = config.UpcomingWindow;
-                    page.querySelector('#UpcomingSourceTmdb').checked = config.UpcomingSourceTmdb;
-                    page.querySelector('#UpcomingSourceYoutube').checked = config.UpcomingSourceYoutube;
 
                     page.querySelector('#TmdbApiKey').value = config.TmdbApiKey || '';
 
@@ -606,13 +634,9 @@
 
                     config.LibraryTrailerCount = parseInt(page.querySelector('#LibraryTrailerCount').value, 10) || 0;
                     config.LibraryFilter = page.querySelector('#LibraryFilter').value;
-                    config.LibrarySourceTmdb = page.querySelector('#LibrarySourceTmdb').checked;
-                    config.LibrarySourceYoutube = page.querySelector('#LibrarySourceYoutube').checked;
 
                     config.UpcomingTrailerCount = parseInt(page.querySelector('#UpcomingTrailerCount').value, 10) || 0;
                     config.UpcomingWindow = page.querySelector('#UpcomingWindow').value;
-                    config.UpcomingSourceTmdb = page.querySelector('#UpcomingSourceTmdb').checked;
-                    config.UpcomingSourceYoutube = page.querySelector('#UpcomingSourceYoutube').checked;
 
                     config.TmdbApiKey = page.querySelector('#TmdbApiKey').value.trim();
 
@@ -645,6 +669,7 @@
             }
 
             document.querySelector('#TrailerPrerollConfigPage').addEventListener('pageshow', function () {
+                initTabs(this);
                 loadConfig(this);
             });
 
@@ -698,17 +723,6 @@
                 }, function () {
                     Dashboard.hideLoadingMsg();
                     Dashboard.alert('Could not start the download. Check the server logs.');
-                });
-            });
-
-            document.querySelector('#ConvertTypesBtn').addEventListener('click', function () {
-                Dashboard.showLoadingMsg();
-                ApiClient.ajax({ type: 'POST', url: ApiClient.getUrl('TrailerPreroll/ConvertTypes') }).then(function () {
-                    Dashboard.hideLoadingMsg();
-                    Dashboard.alert('Re-typing started. The two trailer libraries will re-scan in the background (no re-download). Refresh the library view in a minute to see them as Trailers.');
-                }, function () {
-                    Dashboard.hideLoadingMsg();
-                    Dashboard.alert('Could not start the conversion. Check the server logs.');
                 });
             });
         })();

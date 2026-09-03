@@ -298,6 +298,77 @@ namespace Jellyfin.Plugin.TrailerPreroll.Services
             }
         }
 
+        /// <summary>
+        /// Replaces one specific cached trailer (identified by its YouTube key) with a fresh, different
+        /// one from the same pool (library or upcoming): downloads the replacement first, then removes
+        /// the old file and its sidecars. Backs the "Change trailer" button. Returns true on success.
+        /// </summary>
+        /// <param name="key">The YouTube key of the trailer to replace.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <returns>True if a replacement was downloaded and the old trailer removed.</returns>
+        public async Task<bool> ReplaceSpecificAsync(string key, CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrEmpty(key))
+            {
+                return false;
+            }
+
+            var (dir, isUpcoming, oldPath) = LocateCached(key);
+            if (dir is null || oldPath is null)
+            {
+                return false;
+            }
+
+            if (!await _rotationLock.WaitAsync(TimeSpan.FromSeconds(30), cancellationToken).ConfigureAwait(false))
+            {
+                return false;
+            }
+
+            try
+            {
+                var config = Config;
+                var pool = isUpcoming
+                    ? await BuildUpcomingPoolAsync(config, cancellationToken).ConfigureAwait(false)
+                    : BuildLibraryCandidates(config);
+
+                var cachedKeys = GetCachedKeys(dir);
+                var freshPicks = pool
+                    .Where(p => !cachedKeys.Contains(p.YoutubeKey) && !string.Equals(p.YoutubeKey, key, StringComparison.Ordinal))
+                    .ToList();
+
+                if (freshPicks.Count == 0)
+                {
+                    _logger.LogInformation("Trailer Preroll change-trailer: no fresh replacement available for {Key}.", key);
+                    return false;
+                }
+
+                Shuffle(freshPicks);
+                var replacement = freshPicks[0];
+                var newPath = Path.Combine(dir, replacement.FileName);
+
+                // Download the replacement FIRST; only remove the old trailer once it succeeds.
+                if (!await _downloader.DownloadAsync(replacement.YoutubeKey, newPath, cancellationToken).ConfigureAwait(false))
+                {
+                    return false;
+                }
+
+                DeleteTrailerFiles(dir, oldPath);
+                _playTracker.Forget(key);
+                _libraryManager.QueueLibraryScan();
+                _logger.LogInformation("Trailer Preroll change-trailer: replaced {Old} with {New}.", key, replacement.YoutubeKey);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Trailer Preroll change-trailer failed for {Key}.", key);
+                return false;
+            }
+            finally
+            {
+                _rotationLock.Release();
+            }
+        }
+
         private static readonly Regex KeyInName = new(@"\s*\[[A-Za-z0-9_-]{11}\]\s*", RegexOptions.Compiled);
 
         /// <summary>

@@ -29,6 +29,8 @@ Jellyfin's built-in **Cinema Mode / Intros** feature.
 - **Rolling rotation** — replace a trailer after it has played N times.
 - A **"Want to watch" button** on the web player: while a trailer plays, one click adds the film to
   your personal *Watch Later* playlist. Trailers saved this way are protected from deletion.
+- A **"Change trailer" button** on the web player: don't want to see a trailer? One click removes it,
+  skips to the next preroll, and downloads a different trailer to take its place.
 - **One-click tool setup** — a button in settings downloads the correct yt-dlp and deno for your
   server automatically; no manual binaries to place.
 - **Posters** applied automatically (the real film poster for library trailers, a TMDB poster for

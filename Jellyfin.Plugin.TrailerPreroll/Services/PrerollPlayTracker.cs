@@ -10,14 +10,15 @@ using Microsoft.Extensions.Logging;
 namespace Jellyfin.Plugin.TrailerPreroll.Services
 {
     /// <summary>
-    /// Tracks how many times each cached trailer (by YouTube key) has been played, persisted to disk,
-    /// so the rolling rotation can retire a trailer after it has been shown enough times.
+    /// Tracks how many times each cached trailer (by YouTube key) has been played, along with the
+    /// trailer's display title so the settings page can name it even after the file has been rotated
+    /// off disk. Persisted to disk so the rolling rotation can retire a trailer after enough plays.
     /// </summary>
     public class PrerollPlayTracker
     {
         private readonly ILogger<PrerollPlayTracker> _logger;
         private readonly string _file;
-        private readonly ConcurrentDictionary<string, int> _counts;
+        private readonly ConcurrentDictionary<string, Entry> _counts;
         private readonly object _saveLock = new();
 
         /// <summary>
@@ -33,20 +34,33 @@ namespace Jellyfin.Plugin.TrailerPreroll.Services
         }
 
         /// <summary>
-        /// Records one play for each key and returns nothing; counts are persisted.
+        /// Records one play for each key (remembering the title for display), and persists the counts.
         /// </summary>
-        /// <param name="keys">The YouTube keys that were served.</param>
-        public void RecordPlays(IEnumerable<string> keys)
+        /// <param name="plays">The (YouTube key, display title) pairs that were served.</param>
+        public void RecordPlays(IEnumerable<KeyValuePair<string, string?>> plays)
         {
             var changed = false;
-            foreach (var key in keys)
+            foreach (var play in plays)
             {
+                var key = play.Key;
                 if (string.IsNullOrEmpty(key))
                 {
                     continue;
                 }
 
-                _counts.AddOrUpdate(key, 1, (_, c) => c + 1);
+                _counts.AddOrUpdate(
+                    key,
+                    _ => new Entry { Count = 1, Title = play.Value },
+                    (_, e) =>
+                    {
+                        e.Count++;
+                        if (!string.IsNullOrWhiteSpace(play.Value))
+                        {
+                            e.Title = play.Value;
+                        }
+
+                        return e;
+                    });
                 changed = true;
             }
 
@@ -68,16 +82,16 @@ namespace Jellyfin.Plugin.TrailerPreroll.Services
                 return Array.Empty<string>();
             }
 
-            return _counts.Where(kv => kv.Value >= threshold).Select(kv => kv.Key).ToList();
+            return _counts.Where(kv => kv.Value.Count >= threshold).Select(kv => kv.Key).ToList();
         }
 
         /// <summary>
-        /// Gets a snapshot of every tracked key and its play count.
+        /// Gets a snapshot of every tracked key with its play count and last-known title.
         /// </summary>
-        /// <returns>A copy of the key-to-count map.</returns>
-        public IReadOnlyDictionary<string, int> GetAll()
+        /// <returns>A copy of the key-to-(count, title) map.</returns>
+        public IReadOnlyDictionary<string, (int Count, string? Title)> GetAll()
         {
-            return new Dictionary<string, int>(_counts, StringComparer.Ordinal);
+            return _counts.ToDictionary(kv => kv.Key, kv => (kv.Value.Count, kv.Value.Title), StringComparer.Ordinal);
         }
 
         /// <summary>
@@ -92,17 +106,37 @@ namespace Jellyfin.Plugin.TrailerPreroll.Services
             }
         }
 
-        private ConcurrentDictionary<string, int> Load()
+        private ConcurrentDictionary<string, Entry> Load()
         {
+            var result = new ConcurrentDictionary<string, Entry>(StringComparer.Ordinal);
             try
             {
-                if (File.Exists(_file))
+                if (!File.Exists(_file))
                 {
-                    var json = File.ReadAllText(_file);
-                    var dict = JsonSerializer.Deserialize<Dictionary<string, int>>(json);
-                    if (dict is not null)
+                    return result;
+                }
+
+                var json = File.ReadAllText(_file);
+                var raw = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json);
+                if (raw is null)
+                {
+                    return result;
+                }
+
+                foreach (var kv in raw)
+                {
+                    // Legacy format was { "key": <count> }; new format is { "key": { count, title } }.
+                    if (kv.Value.ValueKind == JsonValueKind.Number && kv.Value.TryGetInt32(out var c))
                     {
-                        return new ConcurrentDictionary<string, int>(dict, StringComparer.Ordinal);
+                        result[kv.Key] = new Entry { Count = c, Title = null };
+                    }
+                    else if (kv.Value.ValueKind == JsonValueKind.Object)
+                    {
+                        result[kv.Key] = new Entry
+                        {
+                            Count = GetInt(kv.Value, "count", "Count"),
+                            Title = GetString(kv.Value, "title", "Title")
+                        };
                     }
                 }
             }
@@ -111,7 +145,33 @@ namespace Jellyfin.Plugin.TrailerPreroll.Services
                 _logger.LogDebug(ex, "Trailer Preroll could not load play counts; starting fresh.");
             }
 
-            return new ConcurrentDictionary<string, int>(StringComparer.Ordinal);
+            return result;
+        }
+
+        private static int GetInt(JsonElement obj, params string[] names)
+        {
+            foreach (var n in names)
+            {
+                if (obj.TryGetProperty(n, out var el) && el.ValueKind == JsonValueKind.Number && el.TryGetInt32(out var v))
+                {
+                    return v;
+                }
+            }
+
+            return 0;
+        }
+
+        private static string? GetString(JsonElement obj, params string[] names)
+        {
+            foreach (var n in names)
+            {
+                if (obj.TryGetProperty(n, out var el) && el.ValueKind == JsonValueKind.String)
+                {
+                    return el.GetString();
+                }
+            }
+
+            return null;
         }
 
         private void Save()
@@ -121,7 +181,8 @@ namespace Jellyfin.Plugin.TrailerPreroll.Services
                 try
                 {
                     Directory.CreateDirectory(Path.GetDirectoryName(_file)!);
-                    var json = JsonSerializer.Serialize(new Dictionary<string, int>(_counts));
+                    var snapshot = _counts.ToDictionary(kv => kv.Key, kv => kv.Value);
+                    var json = JsonSerializer.Serialize(snapshot);
                     File.WriteAllText(_file, json);
                 }
                 catch (Exception ex)
@@ -129,6 +190,13 @@ namespace Jellyfin.Plugin.TrailerPreroll.Services
                     _logger.LogDebug(ex, "Trailer Preroll could not save play counts.");
                 }
             }
+        }
+
+        private sealed class Entry
+        {
+            public int Count { get; set; }
+
+            public string? Title { get; set; }
         }
     }
 }

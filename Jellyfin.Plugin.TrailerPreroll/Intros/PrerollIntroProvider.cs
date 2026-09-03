@@ -102,7 +102,7 @@ namespace Jellyfin.Plugin.TrailerPreroll.Intros
             }
 
             var orderedIds = new List<Guid>();
-            var servedKeys = new List<string>();
+            var served = new List<KeyValuePair<string, string?>>();
 
             // --- Library trailers (honouring the per-user watched/unwatched filter) ---
             var libraryCount = Clamp(settings.LibraryTrailerCount);
@@ -122,7 +122,7 @@ namespace Jellyfin.Plugin.TrailerPreroll.Intros
                 foreach (var kv in candidates.Take(libraryCount))
                 {
                     orderedIds.Add(kv.Value);
-                    servedKeys.Add(kv.Key);
+                    served.Add(new KeyValuePair<string, string?>(kv.Key, _libraryManager.GetItemById(kv.Value)?.Name));
                 }
             }
 
@@ -152,7 +152,7 @@ namespace Jellyfin.Plugin.TrailerPreroll.Intros
                 foreach (var kv in chosenUpcoming)
                 {
                     orderedIds.Add(kv.Value);
-                    servedKeys.Add(kv.Key);
+                    served.Add(new KeyValuePair<string, string?>(kv.Key, _libraryManager.GetItemById(kv.Value)?.Name));
                 }
             }
 
@@ -162,7 +162,7 @@ namespace Jellyfin.Plugin.TrailerPreroll.Intros
             }
 
             // Count these as plays (drives the rolling "replace after N plays" rotation).
-            _playTracker.RecordPlays(servedKeys);
+            _playTracker.RecordPlays(served);
 
             _logger.LogInformation("Trailer Preroll: serving {Count} trailer(s) before {Kind} '{Name}'", orderedIds.Count, kind, item.Name);
             return orderedIds.Select(id => new IntroInfo { ItemId = id });
