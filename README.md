@@ -103,6 +103,10 @@ Then open the plugin settings and:
   simply won't load (the rest of the plugin still works). This path is not yet tested — feedback
   appreciated.
 
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for the version history.
+
 ## Building from source
 
 Requires the .NET 9 SDK.
