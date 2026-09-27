@@ -8,9 +8,11 @@ Trailers are downloaded on a small, rotating schedule with [yt-dlp](https://gith
 muxed with Jellyfin's bundled ffmpeg, and served from two auto-created libraries. They play through
 Jellyfin's built-in **Cinema Mode / Intros** feature.
 
-> Built for **Jellyfin 10.11.x** (.NET 9). Developed and tested on **Windows**; it should work on
-> Linux/Docker (paths and tools are resolved per-OS), but that hasn't been verified yet — see the
-> Linux/Docker note below. Reports welcome.
+> **Jellyfin version:** the **2.x** releases are built for **Jellyfin 12.x** (.NET 10, built against
+> 12.1.0); the **1.5.x** releases are for **Jellyfin 10.11.x** (.NET 9). Both are served from the same
+> repository — Jellyfin installs the newest build that matches your server. Developed and tested on
+> **Windows**; it should work on Linux/Docker (paths and tools are resolved per-OS), but that hasn't
+> been verified yet — see the Linux/Docker note below. Reports welcome.
 
 ## Features
 
@@ -109,14 +111,14 @@ See [CHANGELOG.md](CHANGELOG.md) for the version history.
 
 ## Building from source
 
-Requires the .NET 9 SDK.
+Requires the .NET 10 SDK (for the 2.x / Jellyfin 12.x line; the 1.5.x / Jellyfin 10.11 line used .NET 9).
 
 ```bash
 cd Jellyfin.Plugin.TrailerPreroll
 dotnet build -c Release
 ```
 
-The plugin DLL is written to `bin/Release/net9.0/Jellyfin.Plugin.TrailerPreroll.dll`. To package a
+The plugin DLL is written to `bin/Release/net10.0/Jellyfin.Plugin.TrailerPreroll.dll`. To package a
 release, zip that DLL together with a `meta.json` (see the repo root for a template).
 
 ## License

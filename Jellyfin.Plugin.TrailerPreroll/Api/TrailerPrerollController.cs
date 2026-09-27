@@ -92,6 +92,7 @@ namespace Jellyfin.Plugin.TrailerPreroll.Api
                     await _catalog.RotateIfNeededAsync(force: true, CancellationToken.None).ConfigureAwait(false);
                     await _catalog.RollReplaceAsync(maxPerRun: 3, CancellationToken.None).ConfigureAwait(false);
                     _catalog.RemoveDuplicateTrailers(CancellationToken.None);
+                    _catalog.RemoveOrphanFiles(CancellationToken.None);
                     _catalog.CleanupLibraryItems(CancellationToken.None);
                     await _catalog.CleanupItemNamesAsync(CancellationToken.None).ConfigureAwait(false);
                 }
@@ -481,7 +482,8 @@ namespace Jellyfin.Plugin.TrailerPreroll.Api
                     return false; // already saved - don't add a duplicate
                 }
 
-                await _playlistManager.AddItemToPlaylistAsync(existing.Id, new[] { itemId }, userId).ConfigureAwait(false);
+                // Jellyfin 12.x added an insertion-index parameter (null = append).
+                await _playlistManager.AddItemToPlaylistAsync(existing.Id, new[] { itemId }, null, userId).ConfigureAwait(false);
                 return true;
             }
 

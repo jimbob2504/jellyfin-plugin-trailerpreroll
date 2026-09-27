@@ -264,7 +264,7 @@ namespace Jellyfin.Plugin.TrailerPreroll.Services
                         {
                             if (oldPath is not null && File.Exists(oldPath))
                             {
-                                File.Delete(oldPath);
+                                DeleteTrailerFiles(dir, oldPath);
                             }
                         }
                         catch (IOException)
@@ -433,6 +433,75 @@ namespace Jellyfin.Plugin.TrailerPreroll.Services
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Trailer Preroll library-item cleanup failed");
+            }
+
+            return removed;
+        }
+
+        /// <summary>
+        /// Deletes sidecar files (.nfo, -poster.jpg, -backdrop.jpg, -logo.png, ...) left in the trailer
+        /// folders when a trailer's .mp4 was rotated away but its artwork/metadata was not. A file is an
+        /// orphan when no .mp4 in the same folder shares its base name. Returns how many were removed.
+        /// </summary>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <returns>The number of orphaned sidecar files removed.</returns>
+        public int RemoveOrphanFiles(CancellationToken cancellationToken)
+        {
+            var removed = 0;
+            try
+            {
+                foreach (var dir in new[] { _libraries.LibraryDir, _libraries.UpcomingDir })
+                {
+                    if (!Directory.Exists(dir))
+                    {
+                        continue;
+                    }
+
+                    var mp4Bases = new HashSet<string>(
+                        Directory.GetFiles(dir, "*.mp4")
+                            .Where(f => !Path.GetFileName(f).StartsWith("dl_", StringComparison.Ordinal))
+                            .Select(f => Path.GetFileNameWithoutExtension(f)),
+                        StringComparer.OrdinalIgnoreCase);
+
+                    foreach (var f in Directory.GetFiles(dir))
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        var name = Path.GetFileName(f);
+                        if (name.EndsWith(".mp4", StringComparison.OrdinalIgnoreCase)
+                            || name.StartsWith("dl_", StringComparison.Ordinal))
+                        {
+                            continue;
+                        }
+
+                        // Belongs to an existing trailer if some .mp4 base is this file's prefix, followed
+                        // by '-' or '.' (e.g. "Title [key]-poster.jpg", "Title [key].nfo").
+                        var belongs = mp4Bases.Any(b =>
+                            name.Length > b.Length
+                            && name.StartsWith(b, StringComparison.OrdinalIgnoreCase)
+                            && (name[b.Length] == '-' || name[b.Length] == '.'));
+
+                        if (!belongs)
+                        {
+                            try
+                            {
+                                File.Delete(f);
+                                removed++;
+                            }
+                            catch (IOException)
+                            {
+                            }
+                        }
+                    }
+                }
+
+                if (removed > 0)
+                {
+                    _logger.LogInformation("Trailer Preroll removed {Count} orphaned sidecar file(s).", removed);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Trailer Preroll orphan-file cleanup failed");
             }
 
             return removed;
@@ -1114,7 +1183,9 @@ namespace Jellyfin.Plugin.TrailerPreroll.Services
                     {
                         try
                         {
-                            f.Delete();
+                            // Delete the trailer AND its sidecars (.nfo, -poster.jpg, ...) so rotation
+                            // doesn't leave orphaned artwork behind.
+                            DeleteTrailerFiles(dir, f.FullName);
                             changed = true;
                         }
                         catch (IOException)
@@ -1256,7 +1327,7 @@ namespace Jellyfin.Plugin.TrailerPreroll.Services
                         var posterUrl = string.IsNullOrEmpty(movie.PosterPath)
                             ? null
                             : "https://image.tmdb.org/t/p/w500" + movie.PosterPath;
-                        byKey[key] = new PrerollItem(key, movie.Title, PrerollCategory.Upcoming)
+                        byKey[key] = new PrerollItem(key, movie.Title ?? string.Empty, PrerollCategory.Upcoming)
                         {
                             Year = release.Year,
                             ImageUrl = posterUrl
@@ -1316,7 +1387,7 @@ namespace Jellyfin.Plugin.TrailerPreroll.Services
 
         private static async Task<string?> GetTmdbTrailerKeyAsync(TMDbClient client, int movieId, CancellationToken cancellationToken)
         {
-            var videos = await client.GetMovieVideosAsync(movieId, cancellationToken).ConfigureAwait(false);
+            var videos = await client.GetMovieVideosAsync(movieId, cancellationToken: cancellationToken).ConfigureAwait(false);
             if (videos?.Results is null)
             {
                 return null;

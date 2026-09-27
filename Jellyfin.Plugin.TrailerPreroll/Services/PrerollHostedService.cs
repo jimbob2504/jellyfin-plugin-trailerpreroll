@@ -147,15 +147,15 @@ namespace Jellyfin.Plugin.TrailerPreroll.Services
 
                 morePending = await _catalog.RotateIfNeededAsync(force, CancellationToken.None).ConfigureAwait(false);
 
-                // Run the tidy-up (dedupe/names/posters) once the pool has finished filling, not on
-                // every 2-minute fill tick. Rolling play-based rotation is left to the scheduled task.
-                if (!morePending)
-                {
-                    _catalog.RemoveDuplicateTrailers(CancellationToken.None);
-                    _catalog.CleanupLibraryItems(CancellationToken.None);
-                    await _catalog.CleanupItemNamesAsync(CancellationToken.None).ConfigureAwait(false);
-                    await _catalog.EnsureUpcomingPostersAsync(CancellationToken.None).ConfigureAwait(false);
-                }
+                // Run the tidy-up every tick (not only once the pool is full): if YouTube downloads keep
+                // failing, the pool never finishes filling, and gating maintenance on that would mean
+                // ghost/duplicate items and orphaned sidecar files never get cleaned. These passes are
+                // idempotent and only touch the DB/disk when there is actually something to fix.
+                _catalog.RemoveDuplicateTrailers(CancellationToken.None);
+                _catalog.RemoveOrphanFiles(CancellationToken.None);
+                _catalog.CleanupLibraryItems(CancellationToken.None);
+                await _catalog.CleanupItemNamesAsync(CancellationToken.None).ConfigureAwait(false);
+                await _catalog.EnsureUpcomingPostersAsync(CancellationToken.None).ConfigureAwait(false);
             }
             catch (Exception ex)
             {

@@ -1,12 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>Jellyfin.Plugin.TrailerPreroll</RootNamespace>
     <AssemblyName>Jellyfin.Plugin.TrailerPreroll</AssemblyName>
-    <Version>1.5.0.1</Version>
-    <AssemblyVersion>1.5.0.1</AssemblyVersion>
-    <FileVersion>1.5.0.1</FileVersion>
+    <Version>2.0.0.0</Version>
+    <AssemblyVersion>2.0.0.0</AssemblyVersion>
+    <FileVersion>2.0.0.0</FileVersion>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>disable</ImplicitUsings>
@@ -17,9 +17,9 @@
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
-    <PackageReference Include="Jellyfin.Controller" Version="10.11.11" />
-    <!-- Provided by the Jellyfin server at runtime (its built-in TMDB provider ships 2.3.0); not shipped with the plugin. -->
-    <PackageReference Include="TMDbLib" Version="2.3.0" Private="false" />
+    <PackageReference Include="Jellyfin.Controller" Version="12.1.0" />
+    <!-- Provided by the Jellyfin server at runtime (its built-in TMDB provider ships 3.0.0); not shipped with the plugin. -->
+    <PackageReference Include="TMDbLib" Version="3.0.0" Private="false" />
   </ItemGroup>
 
   <ItemGroup>

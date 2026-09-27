@@ -9,6 +9,14 @@
     "imageUrl": "",
     "versions": [
       {
+        "version": "2.0.0.0",
+        "changelog": "Jellyfin 12.x support (built for .NET 10 against 12.1.0), plus the library cleanup fixes (ghost/duplicate removal every cycle; rotation deletes trailer sidecars). Requires Jellyfin 12.1.0+; 10.11 servers stay on 1.5.x.",
+        "targetAbi": "12.1.0.0",
+        "sourceUrl": "https://github.com/jimbob2504/jellyfin-plugin-trailerpreroll/releases/download/v2.0.0.0/trailer-preroll_2.0.0.0.zip",
+        "checksum": "6567a51c2342ec4b50abc249f48a63bc",
+        "timestamp": "2026-09-27T00:00:00Z"
+      },
+      {
         "version": "1.5.0.1",
         "changelog": "Fixes the settings page styling that didn't apply in 1.5.0.0 (pill tabs, language dropdown and cached-trailer cards now render); cached trailers load automatically as bordered cards.",
         "targetAbi": "10.11.0.0",

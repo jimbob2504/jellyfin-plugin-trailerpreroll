@@ -5,6 +5,17 @@ All notable changes to **Trailer Preroll** are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions use Jellyfin's four-part scheme (`major.minor.build.revision`).
 
+## [2.0.0.0] - 2026-09-27
+
+Support for **Jellyfin 12.x**. This build targets Jellyfin 12.1.0 on .NET 10 and **will not load on Jellyfin 10.11** — 10.11 servers should stay on the 1.5.x line. Both lines are served from the same repository (Jellyfin installs the newest build matching your server version).
+
+### Added
+- Jellyfin 12.x / .NET 10 compatibility (rebuilt against 12.1.0; updated for the 12.x playlist and TMDB APIs).
+
+### Fixed
+- Duplicate and "ghost" entries in the trailer libraries (the same trailer showing several times, sometimes with the video id still in the name). The library-item cleanup now runs every cycle instead of only once downloads have finished filling the pool (which never happens while YouTube downloads are failing).
+- Rotation now deletes a trailer's sidecar files (`.nfo`, `-poster.jpg`, `-backdrop.jpg`, `-logo.png`, ...) along with the video, instead of leaving them orphaned on disk. Existing orphaned sidecars are swept up automatically.
+
 ## [1.5.0.1] - 2026-09-03
 
 ### Fixed
@@ -78,6 +89,7 @@ Versions use Jellyfin's four-part scheme (`major.minor.build.revision`).
 - Per-user overrides, watched/unwatched filtering, randomisation, configurable counts, pool sizes, rotation interval, quality cap, and optional YouTube cookies support.
 - "Want to watch" button on the web player that adds the film to a personal Watch Later playlist; trailers saved this way are protected from deletion.
 
+[2.0.0.0]: https://github.com/jimbob2504/jellyfin-plugin-trailerpreroll/releases/tag/v2.0.0.0
 [1.5.0.1]: https://github.com/jimbob2504/jellyfin-plugin-trailerpreroll/releases/tag/v1.5.0.1
 [1.5.0.0]: https://github.com/jimbob2504/jellyfin-plugin-trailerpreroll/releases/tag/v1.5.0.0
 [1.4.0.0]: https://github.com/jimbob2504/jellyfin-plugin-trailerpreroll/releases/tag/v1.4.0.0
